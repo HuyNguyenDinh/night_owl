@@ -1,0 +1,1 @@
+web: gunicorn night_owl_market.wsgi --log-file -

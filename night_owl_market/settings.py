@@ -82,10 +82,10 @@ WSGI_APPLICATION = 'night_owl_market.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': 'night_owl',
-        'USER': 'postgres',
-        'PASSWORD': '0937461321Huy',
-        'HOST': '127.0.0.1',
+        'NAME': 'd8g2oqvrvkvsmp',
+        'USER': 'xguytfhmbzjwsb',
+        'PASSWORD': '640aa993e7bdfa92d6e5d6a5994ff42b1de4cde562b6b30a313801ec7458b4c7',
+        'HOST': 'ec2-34-193-44-192.compute-1.amazonaws.com',
         'PORT': '5432',
     }
 }
