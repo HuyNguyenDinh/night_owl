@@ -8,7 +8,7 @@ from .models import *
 from .serializers import *
 # Create your views here.
 
-class UserViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.RetrieveUpdateDestroyAPIView):
+class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
     queryset = User.objects.filter(is_active=True)
     parser_classes = [MultiPartParser, FileUploadParser]
     serializer_class = UserSerializer
@@ -38,6 +38,6 @@ class ProductViewSet(viewsets.ViewSet, generics.ListCreateAPIView, generics.Upda
         options = options.filter(unit_in_stock__gt=0)
         return Response(OptionsSerializer(options, many=True).data, status=status.HTTP_200_OK)
     
-class CategoryViewSet(viewsets.ViewSet, generics.ListCreateAPIView, generics.RetrieveUpdateDestroyAPIView):
+class CategoryViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.ListAPIView, generics.UpdateAPIView, generics.DestroyAPIView):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
