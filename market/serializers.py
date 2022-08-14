@@ -24,7 +24,6 @@ class CategorySerializer(ModelSerializer):
         fields = "__all__"
 
 class OptionsPictureSerializer(ModelSerializer):
-    image = ImageField()
 
     class Meta:
         model = Picture
@@ -34,18 +33,31 @@ class OptionsPictureSerializer(ModelSerializer):
             'link': {'read_only': 'true'},
         }
     
-    def create(self, validated_data):
-        res = cloudinary.uploader.upload(validated_data['image'])
-        res = pickle.dump(res)
-    
 
 class OptionsSerializer(ModelSerializer):
     picture_set = OptionsPictureSerializer(many=True)
     class Meta:
         model = Option
-        fields = '__all__' 
+        fields = '__all__'
 
 class ProductSerializer(ModelSerializer):
+    
     class Meta:
         model = Product
         fields = "__all__"
+
+class ProductRetrieveSerializer(ModelSerializer):
+    option_set = OptionsSerializer(many=True)
+
+    class Meta:
+        model = Product
+        fields = "__all__"
+
+class OrderDetailSerializer(ModelSerializer):
+    class Meta:
+        pass
+
+class OrderSerializer(ModelSerializer):
+    
+    class Meta:
+        model = Order

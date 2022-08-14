@@ -13,9 +13,8 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
     parser_classes = [MultiPartParser, FileUploadParser]
     serializer_class = UserSerializer
 
-class ProductViewSet(viewsets.ViewSet, generics.ListCreateAPIView, generics.UpdateAPIView, generics.DestroyAPIView):
+class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all()
-    serializer_class = ProductSerializer
     parser_classes = [MultiPartParser, FileUploadParser]
 
     def get_queryset(self):
@@ -32,6 +31,10 @@ class ProductViewSet(viewsets.ViewSet, generics.ListCreateAPIView, generics.Upda
         
         return products
 
+    def get_serializer_class(self):
+        if self.action == 'retrieve':
+            return ProductRetrieveSerializer
+        return ProductSerializer
     @action(methods=['get'], detail=True, url_path='options')
     def get_options(self, request, pk):
         options = Product.objects.get(pk=pk).option_set.all()
@@ -41,3 +44,7 @@ class ProductViewSet(viewsets.ViewSet, generics.ListCreateAPIView, generics.Upda
 class CategoryViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.ListAPIView, generics.UpdateAPIView, generics.DestroyAPIView):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
+
+class OptionViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.UpdateAPIView, generics.DestroyAPIView):
+    queryset = Option.objects.all()
+    serializer_class = OptionsSerializer
