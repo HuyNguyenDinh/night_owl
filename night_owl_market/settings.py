@@ -139,7 +139,7 @@ STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'static'),
     os.path.join(BASE_DIR, 'frontend/build/static'),
 ]
-
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 MEDIA_ROOT = "%s/static/media/" % BASE_DIR
 MEDIA_URL = 'media/'
 
