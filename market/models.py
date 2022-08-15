@@ -54,6 +54,13 @@ class User(AbstractUser):
     )
     role = models.IntegerField(choices=USER_ROLE, default=0)
 
+    PROVIDERS = (
+        (0, 'default'),
+        (1, 'facebook'),
+        (2, 'google'),
+    )
+    provider = models.IntegerField(choices=PROVIDERS, default=0)
+
     def __str__(self) -> str:
         return self.first_name + ' ' + self.last_name
 

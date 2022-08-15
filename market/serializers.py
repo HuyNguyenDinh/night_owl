@@ -1,13 +1,14 @@
-from copyreg import pickle
-from rest_framework.serializers import  ModelSerializer, ImageField
+from rest_framework.serializers import  ModelSerializer
 from .models import *
 import cloudinary
 import cloudinary.uploader
 
+
+
 class UserSerializer(ModelSerializer):
     class Meta:
         model = User
-        fields = ["id", "first_name", "last_name", "email", "username", "password", "avatar", "phone_number"]
+        fields = ["id", "first_name", "last_name", "email", "username", "password", "avatar", "phone_number", "role"]
         extra_kwargs = {
             'password': {'write_only': 'true'},
         }
@@ -68,4 +69,29 @@ class AddressSerializer(ModelSerializer):
 
     class Meta:
         model = Address
+        fields = "__all__"
+
+class ShipperSerializer(ModelSerializer):
+
+    class Meta:
+        model = Shipper
+        fields = "__all__"
+
+class BillSerializer(ModelSerializer):
+
+    class Meta:
+        model = Bill
+        fields = "__all__"
+
+class RatingSerializer(ModelSerializer):
+    creator = UserSerializer()
+
+    class Meta:
+        model = Rating
+        fields = "__all__"
+
+class VoucherSerializer(ModelSerializer):
+
+    class Meta:
+        model = Voucher
         fields = "__all__"
