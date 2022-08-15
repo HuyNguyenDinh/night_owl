@@ -55,9 +55,17 @@ class ProductRetrieveSerializer(ModelSerializer):
 
 class OrderDetailSerializer(ModelSerializer):
     class Meta:
-        pass
+        model = OrderDetail
+        fields = "__all__"
 
 class OrderSerializer(ModelSerializer):
     
     class Meta:
         model = Order
+        fields = "__all__"
+
+class AddressSerializer(ModelSerializer):
+
+    class Meta:
+        model = Address
+        fields = "__all__"
