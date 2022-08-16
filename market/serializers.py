@@ -8,7 +8,7 @@ import cloudinary.uploader
 class UserSerializer(ModelSerializer):
     class Meta:
         model = User
-        fields = ["id", "first_name", "last_name", "email", "username", "password", "avatar", "phone_number", "role"]
+        fields = ["id", "first_name", "last_name", "email", "username", "password", "avatar", "phone_number", "is_business"]
         extra_kwargs = {
             'password': {'write_only': 'true'},
         }

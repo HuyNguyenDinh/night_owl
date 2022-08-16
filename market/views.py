@@ -6,6 +6,8 @@ from rest_framework.decorators import action
 from rest_framework import status, generics, views
 from .models import *
 from .serializers import *
+from .perms import *
+from .paginators import *
 # Create your views here.
 
 class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
@@ -14,11 +16,20 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
     serializer_class = UserSerializer
 
 class ProductViewSet(viewsets.ModelViewSet):
-    queryset = Product.objects.all()
     parser_classes = [MultiPartParser, FileUploadParser]
+    pagination_class = ProductPagination
+
+    def get_permissions(self):
+        if self.action in ["list", "retrieve"]:
+            return [permissions.AllowAny(), ]
+        return [BusinessPermission(), ]
 
     def get_queryset(self):
-        products = Product.objects.filter(is_available=True)
+        products = Product.objects.all()
+        if self.action in ["update", "destroy"]:
+            products = products.filter(owner=self.request.user)
+        elif self.action in ["list", "retrieve"]:
+            products = products.filter(is_available=True)
 
         search = self.request.query_params.get("search")
 
@@ -41,17 +52,30 @@ class ProductViewSet(viewsets.ModelViewSet):
         options = options.filter(unit_in_stock__gt=0)
         return Response(OptionsSerializer(options, many=True).data, status=status.HTTP_200_OK)
     
-class CategoryViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.ListAPIView, generics.UpdateAPIView, generics.DestroyAPIView):
+class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
+    pagination_class = CategoryPagination
+
+    def get_permissions(self):
+        if self.action in ["list", "retrieve"]:
+            return [permissions.AllowAny(), ]
+        return [NightOwlPermission(), ]
 
 class OptionViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.UpdateAPIView, generics.DestroyAPIView):
     queryset = Option.objects.all()
     serializer_class = OptionsSerializer
 
-class OrderViewSet(viewsets.ModelViewSet):
-    queryset = Order.objects.all()
+class OrderViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.RetrieveDestroyAPIView):
     serializer_class = OrderSerializer
+    pagination_class = BasePagination
+    permission_classes = [permissions.IsAuthenticated,]
+
+    def get_queryset(self):
+        orders = Order.objects.all()
+        if self.action in ["retrieve", "destroy"]:
+            orders = orders.filter(customer = self.request.user)
+        return orders
 
 class OrderDetailViewSet(viewsets.ModelViewSet):
     queryset = OrderDetail.objects.all()
@@ -60,3 +84,4 @@ class OrderDetailViewSet(viewsets.ModelViewSet):
 class BillViewSet(viewsets.ModelViewSet):
     queryset = Bill.objects.all()
     serializer_class = BillSerializer
+    pagination_class = ProductPagination

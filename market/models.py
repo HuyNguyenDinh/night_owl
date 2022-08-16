@@ -99,9 +99,30 @@ class Shipper(models.Model):
 
 class Order(models.Model):
     order_date = models.DateTimeField(auto_now_add=True)
+    can_destroy = models.BooleanField(default=True)
     completed_date = models.DateField(null=True)
     total_shipping_fee = models.DecimalField(max_digits=20, decimal_places=2, default=0)
+    note = models.TextField(null=True, blank=True)
     order_shipper = models.ForeignKey(Shipper, on_delete=models.SET_NULL, null=True)
+    customer = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='customer_order')
+    store = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='store_order')
+    voucher_apply = models.OneToOneField('Voucher', on_delete=models.SET_NULL, null=True)
+
+    STATUS_CHOICES = (
+        (0, 'Approving'),
+        (1, 'Pending'),
+        (2, 'Completed'),
+        (3, 'Canceled'),
+    )
+    status = models.IntegerField(choices=STATUS_CHOICES, default=0)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['customer', 'store'],
+                name = 'customer_order_store'
+            )
+        ]
 
 
 class Option(models.Model):
@@ -118,25 +139,16 @@ class Picture(models.Model):
     product_option = models.ForeignKey(Option, on_delete=models.CASCADE)
 
 class OrderDetail(models.Model):
-    STATUS_CHOICES = (
-        (0, 'Approving'),
-        (1, 'Pending'),
-        (2, 'Completed'),
-        (3, 'Canceled'),
-    )
     quantity = models.PositiveIntegerField(validators=[MinValueValidator(1)])
-    status = models.IntegerField(choices=STATUS_CHOICES, default=0)
-    shipping_id = models.CharField(max_length=255)
-    shipping_fee = models.DecimalField(max_digits=20, decimal_places=2, default=0)
+    unit_price = models.DecimalField(max_digits=20, decimal_places=2, validators=[MinValueValidator(1)], default=1)
     order = models.ForeignKey(Order, on_delete=models.SET_NULL, null=True)
-    product = models.OneToOneField(Option, on_delete=models.SET_NULL, null=True)
-    product_voucher = models.OneToOneField('Voucher', on_delete=models.SET_NULL, null=True, blank=True)
+    product_option = models.OneToOneField(Option, on_delete=models.SET_NULL, null=True)
 
 class Bill(models.Model):
     value = models.DecimalField(max_digits=20, decimal_places=2,validators=[MinValueValidator(0)], null=False, blank=False)
     date = models.DateTimeField(auto_now_add=True, blank=False, null=False)
     payed = models.BooleanField(default=False, null=False, blank=False)
-    order_detail = models.OneToOneField(OrderDetail, on_delete=models.CASCADE)
+    order_payed = models.OneToOneField(Order, on_delete=models.CASCADE, default=False)
     customer = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
 
 class Rating(models.Model):

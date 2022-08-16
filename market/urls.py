@@ -1,3 +1,4 @@
+from posixpath import basename
 from django.db import router
 from django.urls import path, re_path, include
 from rest_framework.routers import DefaultRouter
@@ -6,12 +7,12 @@ from . import views
 
 router = DefaultRouter()
 router.register("users", views.UserViewSet)
-router.register("products", views.ProductViewSet)
-router.register("category", views.CategoryViewSet)
-router.register("options", views.OptionViewSet)
-router.register("orders", views.OrderViewSet)
-router.register("order-detail", views.OrderDetailViewSet)
-router.register("bills", views.BillViewSet)
+router.register("products", views.ProductViewSet, basename="products")
+router.register("category", views.CategoryViewSet, basename="category")
+router.register("options", views.OptionViewSet, basename="options")
+router.register("orders", views.OrderViewSet, basename="orders")
+router.register("order-detail", views.OrderDetailViewSet, basename="order-detail")
+router.register("bills", views.BillViewSet, basename="bills")
 
 urlpatterns = [
     path('', include(router.urls)),
