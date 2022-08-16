@@ -46,13 +46,7 @@ class User(AbstractUser):
     REQUIRED_FIELDS = []
 
     objects = CustomUserManager()
-
-    USER_ROLE = (
-        (0, 'Customer'),
-        (1, 'Store'),
-        (2, 'Admin')
-    )
-    role = models.IntegerField(choices=USER_ROLE, default=0)
+    is_business = models.BooleanField(default=False)
 
     PROVIDERS = (
         (0, 'default'),
@@ -71,6 +65,7 @@ class Address(models.Model):
     district_id = models.IntegerField(blank=False, null=False)
     ward_id = models.IntegerField(blank=False, null=False)
     street = models.CharField(max_length=255)
+    note = models.TextField(null=True, blank=True)
     creator = models.ForeignKey(User, on_delete=models.CASCADE)
     
     def __str__(self) -> str:
@@ -105,6 +100,7 @@ class Shipper(models.Model):
 class Order(models.Model):
     order_date = models.DateTimeField(auto_now_add=True)
     completed_date = models.DateField(null=True)
+    total_shipping_fee = models.DecimalField(max_digits=20, decimal_places=2, default=0)
     order_shipper = models.ForeignKey(Shipper, on_delete=models.SET_NULL, null=True)
 
 
@@ -132,6 +128,7 @@ class OrderDetail(models.Model):
     quantity = models.PositiveIntegerField(validators=[MinValueValidator(1)])
     status = models.IntegerField(choices=STATUS_CHOICES, default=0)
     shipping_id = models.CharField(max_length=255)
+    shipping_fee = models.DecimalField(max_digits=20, decimal_places=2, default=0)
     order = models.ForeignKey(Order, on_delete=models.SET_NULL, null=True)
     product = models.OneToOneField(Option, on_delete=models.SET_NULL, null=True)
     product_voucher = models.OneToOneField('Voucher', on_delete=models.SET_NULL, null=True, blank=True)
