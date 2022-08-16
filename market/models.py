@@ -117,7 +117,6 @@ class Picture(models.Model):
     image = models.ImageField(upload_to='night_owl/product')
     product_option = models.ForeignKey(Option, on_delete=models.CASCADE)
 
-
 class OrderDetail(models.Model):
     STATUS_CHOICES = (
         (0, 'Approving'),
