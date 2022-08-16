@@ -1,13 +1,13 @@
-from django.shortcuts import render
 from rest_framework import viewsets, permissions
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FileUploadParser
 from rest_framework.decorators import action
-from rest_framework import status, generics, views
+from rest_framework import status, generics
 from .models import *
 from .serializers import *
 from .perms import *
 from .paginators import *
+from django.db.models import Q
 # Create your views here.
 
 class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
@@ -62,9 +62,10 @@ class CategoryViewSet(viewsets.ModelViewSet):
             return [permissions.AllowAny(), ]
         return [NightOwlPermission(), ]
 
-class OptionViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.UpdateAPIView, generics.DestroyAPIView):
+class OptionViewSet(viewsets.ViewSet, generics.UpdateAPIView, generics.DestroyAPIView):
     queryset = Option.objects.all()
     serializer_class = OptionsSerializer
+    ermission_classes = [permissions.IsAuthenticated,]
 
 class OrderViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.RetrieveDestroyAPIView):
     serializer_class = OrderSerializer
@@ -72,10 +73,9 @@ class OrderViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.RetrieveDe
     permission_classes = [permissions.IsAuthenticated,]
 
     def get_queryset(self):
-        orders = Order.objects.all()
-        if self.action in ["retrieve", "destroy"]:
-            orders = orders.filter(customer = self.request.user)
+        orders = Order.objects.filter(Q(customer = self.request.user) | Q(store = self.request.user))
         return orders
+    
 
 class OrderDetailViewSet(viewsets.ModelViewSet):
     queryset = OrderDetail.objects.all()

@@ -8,7 +8,7 @@ import cloudinary.uploader
 class UserSerializer(ModelSerializer):
     class Meta:
         model = User
-        fields = ["id", "first_name", "last_name", "email", "username", "password", "avatar", "phone_number", "is_business"]
+        fields = ["id", "first_name", "last_name", "email", "username", "password", "avatar", "phone_number"]
         extra_kwargs = {
             'password': {'write_only': 'true'},
         }
@@ -60,7 +60,6 @@ class OrderDetailSerializer(ModelSerializer):
         fields = "__all__"
 
 class OrderSerializer(ModelSerializer):
-    
     class Meta:
         model = Order
         fields = "__all__"

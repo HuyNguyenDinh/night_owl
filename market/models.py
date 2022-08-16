@@ -86,7 +86,6 @@ class Product(models.Model):
     description = models.TextField(blank=True, null=True)
     weight = models.DecimalField(max_digits=20, decimal_places=2, default=1, validators=[MinValueValidator(0)])
     owner = models.ForeignKey(User, on_delete=models.CASCADE)
-    warehouse = models.ForeignKey(Address, on_delete=models.SET_NULL, null=True)
 
     def __str__(self) -> str:
         return self.name
