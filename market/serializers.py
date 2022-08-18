@@ -70,12 +70,6 @@ class AddressSerializer(ModelSerializer):
         model = Address
         fields = "__all__"
 
-class ShipperSerializer(ModelSerializer):
-
-    class Meta:
-        model = Shipper
-        fields = "__all__"
-
 class BillSerializer(ModelSerializer):
 
     class Meta:

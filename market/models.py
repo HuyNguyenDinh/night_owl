@@ -90,19 +90,12 @@ class Product(models.Model):
     def __str__(self) -> str:
         return self.name
 
-class Shipper(models.Model):
-    name = models.CharField(max_length=255)
-
-    def __str__(self) -> str:
-        return self.name
-
 class Order(models.Model):
     order_date = models.DateTimeField(auto_now_add=True)
     can_destroy = models.BooleanField(default=True)
     completed_date = models.DateField(null=True)
     total_shipping_fee = models.DecimalField(max_digits=20, decimal_places=2, default=0)
     note = models.TextField(null=True, blank=True)
-    order_shipper = models.ForeignKey(Shipper, on_delete=models.SET_NULL, null=True)
     customer = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='customer_order')
     store = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='store_order')
     voucher_apply = models.OneToOneField('Voucher', on_delete=models.SET_NULL, null=True)
@@ -128,6 +121,11 @@ class Option(models.Model):
     unit = models.CharField(max_length=255, blank=False, null=False)
     unit_in_stock = models.BigIntegerField(default=1, null=False, blank=False)
     price = models.DecimalField(max_digits=20, decimal_places=2)
+    weight = models.PositiveIntegerField(default=1)
+    height = models.PositiveIntegerField(default=1)
+    width = models.PositiveBigIntegerField(default=1)
+    length = models.PositiveIntegerField(default=1)
+
     base_product = models.ForeignKey(Product, on_delete=models.CASCADE)
 
     def __str__(self) -> str:
@@ -149,6 +147,11 @@ class Bill(models.Model):
     payed = models.BooleanField(default=False, null=False, blank=False)
     order_payed = models.OneToOneField(Order, on_delete=models.CASCADE, default=False)
     customer = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+
+class CartDetail(models.Model):
+    quantity = models.PositiveIntegerField(default=1)
+    customer = models.ForeignKey(User, on_delete=models.CASCADE)
+    product_option = models.ForeignKey(Option, on_delete=models.CASCADE)
 
 class Rating(models.Model):
     rate = models.PositiveIntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
