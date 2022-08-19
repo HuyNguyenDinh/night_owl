@@ -83,6 +83,12 @@ class RatingSerializer(ModelSerializer):
         model = Rating
         fields = "__all__"
 
+class CartSerializer(ModelSerializer):
+    
+    class Meta:
+        model = CartDetail
+        fields = "__all__"
+
 class VoucherSerializer(ModelSerializer):
 
     class Meta:

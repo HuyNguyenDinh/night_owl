@@ -1,8 +1,7 @@
-from rest_framework import viewsets, permissions
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FileUploadParser
 from rest_framework.decorators import action
-from rest_framework import status, generics
+from rest_framework import status, generics, viewsets, permissions
 from .models import *
 from .serializers import *
 from .perms import *
@@ -14,6 +13,25 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
     queryset = User.objects.filter(is_active=True)
     parser_classes = [MultiPartParser, FileUploadParser]
     serializer_class = UserSerializer
+
+    @action(methods=['get'], detail=False, url_path='current-user')
+    def get_current_user(self, request):
+        current_user = User.objects.get(pk=request.user.id)
+        if current_user:
+            return Response(UserSerializer(current_user).data, status=status.HTTP_200_OK)
+        return Response({'message': "Current user not found"}, status = status.HTTP_404_NOT_FOUND)
+
+    def get_permissions(self):
+        if self.action == 'create':
+            return [permissions.AllowAny(), ]
+        return [permissions.IsAuthenticated(), ]
+
+class CartDetailViewSet(viewsets.ModelViewSet):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = CartSerializer
+
+    def get_queryset(self):
+        return CartDetail.objects.filter(customer = self.request.user)
 
 class ProductViewSet(viewsets.ModelViewSet):
     parser_classes = [MultiPartParser, FileUploadParser]
