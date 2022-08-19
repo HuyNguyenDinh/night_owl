@@ -13,6 +13,7 @@ router.register("options", views.OptionViewSet, basename="options")
 router.register("orders", views.OrderViewSet, basename="orders")
 router.register("order-detail", views.OrderDetailViewSet, basename="order-detail")
 router.register("bills", views.BillViewSet, basename="bills")
+router.register("cart", views.CartDetailViewSet, basename="cart")
 
 urlpatterns = [
     path('', include(router.urls)),

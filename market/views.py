@@ -31,7 +31,7 @@ class CartDetailViewSet(viewsets.ModelViewSet):
     serializer_class = CartSerializer
 
     def get_queryset(self):
-        return CartDetail.objects.filter(customer = self.request.user)
+        return CartDetail.objects.filter(customer = self.request.user.id)
 
 class ProductViewSet(viewsets.ModelViewSet):
     parser_classes = [MultiPartParser, FileUploadParser]
@@ -45,7 +45,7 @@ class ProductViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         products = Product.objects.all()
         if self.action in ["update", "destroy"]:
-            products = products.filter(owner=self.request.user)
+            products = products.filter(owner=self.request.user.id)
         elif self.action in ["list", "retrieve"]:
             products = products.filter(is_available=True)
 
@@ -83,7 +83,11 @@ class CategoryViewSet(viewsets.ModelViewSet):
 class OptionViewSet(viewsets.ViewSet, generics.UpdateAPIView, generics.DestroyAPIView):
     queryset = Option.objects.all()
     serializer_class = OptionsSerializer
-    ermission_classes = [permissions.IsAuthenticated,]
+
+    def get_permissions(self):
+        if self.action in ["list", "retrieve"]:
+            return [permissions.AllowAny(), ]
+        return [NightOwlPermission(), ]
 
 class OrderViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.RetrieveDestroyAPIView):
     serializer_class = OrderSerializer
@@ -91,15 +95,16 @@ class OrderViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.RetrieveDe
     permission_classes = [permissions.IsAuthenticated,]
 
     def get_queryset(self):
-        orders = Order.objects.filter(Q(customer = self.request.user) | Q(store = self.request.user))
+        orders = Order.objects.filter(Q(customer = self.request.user.id) | Q(store = self.request.user.id))
         return orders
-    
 
 class OrderDetailViewSet(viewsets.ModelViewSet):
     queryset = OrderDetail.objects.all()
     serializer_class = OrderDetailSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
 class BillViewSet(viewsets.ModelViewSet):
     queryset = Bill.objects.all()
     serializer_class = BillSerializer
     pagination_class = ProductPagination
+    permission_classes = [permissions.IsAuthenticated]
