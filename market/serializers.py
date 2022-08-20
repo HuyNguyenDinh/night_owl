@@ -41,6 +41,12 @@ class OptionsSerializer(ModelSerializer):
         model = Option
         fields = '__all__'
 
+class CreateProductSerializer(ModelSerializer):
+
+    class Meta:
+        model = Product
+        exclude = ("sold_amount", "owner")
+
 class ProductSerializer(ModelSerializer):
     
     class Meta:

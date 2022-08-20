@@ -36,11 +36,12 @@ class CartDetailViewSet(viewsets.ModelViewSet):
 class ProductViewSet(viewsets.ModelViewSet):
     parser_classes = [MultiPartParser, FileUploadParser]
     pagination_class = ProductPagination
+    permission_classes = [permissions.AllowAny]
 
-    def get_permissions(self):
-        if self.action in ["list", "retrieve"]:
-            return [permissions.AllowAny(), ]
-        return [BusinessPermission(), ]
+    # def get_permissions(self):
+    #     if self.action in ["list", "retrieve"]:
+    #         return [permissions.AllowAny(), ]
+    #     return [BusinessPermission(), ]
 
     def get_queryset(self):
         products = Product.objects.all()
@@ -63,6 +64,8 @@ class ProductViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if self.action == 'retrieve':
             return ProductRetrieveSerializer
+        elif self.action == 'create':
+            return CreateProductSerializer
         return ProductSerializer
     @action(methods=['get'], detail=True, url_path='options')
     def get_options(self, request, pk):
@@ -74,11 +77,12 @@ class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
     pagination_class = CategoryPagination
+    permission_classes = [permissions.AllowAny]
 
-    def get_permissions(self):
-        if self.action in ["list", "retrieve"]:
-            return [permissions.AllowAny(), ]
-        return [NightOwlPermission(), ]
+    # def get_permissions(self):
+    #     if self.action in ["list", "retrieve"]:
+    #         return [permissions.AllowAny(), ]
+    #     return [NightOwlPermission(), ]
 
 class OptionViewSet(viewsets.ViewSet, generics.UpdateAPIView, generics.DestroyAPIView):
     queryset = Option.objects.all()
