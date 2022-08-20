@@ -64,8 +64,8 @@ class ProductViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if self.action == 'retrieve':
             return ProductRetrieveSerializer
-        elif self.action == 'create':
-            return CreateProductSerializer
+        # elif self.action == 'create':
+            # return CreateProductSerializer
         return ProductSerializer
     @action(methods=['get'], detail=True, url_path='options')
     def get_options(self, request, pk):
