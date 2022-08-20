@@ -1,3 +1,4 @@
+from xml.etree.ElementTree import Comment
 from rest_framework.serializers import  ModelSerializer
 from .models import *
 import cloudinary
@@ -53,10 +54,18 @@ class ProductSerializer(ModelSerializer):
         model = Product
         fields = "__all__"
 
+class RatingSerializer(ModelSerializer):
+    creator = UserSerializer()
+
+    class Meta:
+        model = Rating
+        fields = "__all__"
+
 class ProductRetrieveSerializer(ModelSerializer):
     option_set = OptionsSerializer(many=True)
     owner = UserSerializer()
     categories = CategorySerializer(many=True)
+    rating_set = RatingSerializer(many=True)
 
     class Meta:
         model = Product
@@ -84,12 +93,6 @@ class BillSerializer(ModelSerializer):
         model = Bill
         fields = "__all__"
 
-class RatingSerializer(ModelSerializer):
-    creator = UserSerializer()
-
-    class Meta:
-        model = Rating
-        fields = "__all__"
 
 class CartSerializer(ModelSerializer):
     
