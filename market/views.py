@@ -1,3 +1,4 @@
+from xml.etree.ElementTree import Comment
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FileUploadParser
 from rest_framework.decorators import action
@@ -67,6 +68,15 @@ class ProductViewSet(viewsets.ModelViewSet):
         # elif self.action == 'create':
             # return CreateProductSerializer
         return ProductSerializer
+
+    @action(methods=['get'], detail=True, url_path='comments')
+    def get_comments(self, request, pk):
+        pd = Product.objects.get(pk=pk)
+        comments = Rating.objects.filter(product = pd)
+        if comments:
+            return Response(RatingSerializer(comments, many=True).data, status=status.HTTP_200_OK)
+        return Response({'message': 'This product had no comment'}, status = status.HTTP_404_NOT_FOUND)
+
     @action(methods=['get'], detail=True, url_path='options')
     def get_options(self, request, pk):
         options = Product.objects.get(pk=pk).option_set.all()
