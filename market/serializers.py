@@ -56,7 +56,7 @@ class ProductSerializer(ModelSerializer):
 class ProductRetrieveSerializer(ModelSerializer):
     option_set = OptionsSerializer(many=True)
     owner = UserSerializer()
-    categories = CategorySerializer()
+    categories = CategorySerializer(many=True)
 
     class Meta:
         model = Product
