@@ -7,4 +7,7 @@ class BasePagination(PageNumberPagination):
     page_size = 20
 
 class ProductPagination(PageNumberPagination):
-    page_size = 100
+    page_size = 16
+
+class CommentPagination(PageNumberPagination):
+    page_size = 10

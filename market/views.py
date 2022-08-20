@@ -36,7 +36,7 @@ class CartDetailViewSet(viewsets.ModelViewSet):
 
 class ProductViewSet(viewsets.ModelViewSet):
     parser_classes = [MultiPartParser, FileUploadParser]
-    pagination_class = ProductPagination
+    pagination_class = BasePagination
     permission_classes = [permissions.AllowAny]
 
     # def get_permissions(self):
