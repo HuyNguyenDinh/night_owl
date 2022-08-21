@@ -45,8 +45,6 @@ class OptionsSerializer(ModelSerializer):
 
 class ProductSerializer(ModelSerializer):
 
-    categories = CategorySerializer(many=True)
-    
     class Meta:
         model = Product
         fields = "__all__"

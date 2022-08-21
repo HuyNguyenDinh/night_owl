@@ -15,6 +15,12 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
     parser_classes = [MultiPartParser, FileUploadParser]
     serializer_class = UserSerializer
 
+    def get_parsers(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return []
+
+        return super().get_parsers()
+
     @action(methods=['get'], detail=False, url_path='current-user')
     def get_current_user(self, request):
         current_user = User.objects.get(pk=request.user.id)
@@ -38,6 +44,12 @@ class ProductViewSet(viewsets.ModelViewSet):
     parser_classes = [MultiPartParser, FileUploadParser]
     pagination_class = BasePagination
     permission_classes = [permissions.AllowAny]
+
+    def get_parsers(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return []
+
+        return super().get_parsers()
 
     #
     def get_permissions(self):
