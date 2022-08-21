@@ -12,7 +12,7 @@ from django.db.models import Q
 
 class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
     queryset = User.objects.filter(is_active=True)
-    parser_classes = [MultiPartParser, FileUploadParser]
+    parser_classes = [MultiPartParser, ]
     serializer_class = UserSerializer
 
     def get_parsers(self):
@@ -41,7 +41,7 @@ class CartDetailViewSet(viewsets.ModelViewSet):
         return CartDetail.objects.filter(customer = self.request.user.id)
 
 class ProductViewSet(viewsets.ModelViewSet):
-    parser_classes = [MultiPartParser, FileUploadParser]
+    parser_classes = [MultiPartParser, ]
     pagination_class = BasePagination
     permission_classes = [permissions.AllowAny]
 
