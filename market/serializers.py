@@ -9,7 +9,7 @@ import cloudinary.uploader
 class UserSerializer(ModelSerializer):
     class Meta:
         model = User
-        fields = ["id", "first_name", "last_name", "email", "username", "password", "avatar", "phone_number"]
+        fields = '__all__'
         extra_kwargs = {
             'password': {'write_only': 'true'},
         }
@@ -42,17 +42,29 @@ class OptionsSerializer(ModelSerializer):
         model = Option
         fields = '__all__'
 
-class CreateProductSerializer(ModelSerializer):
-
-    class Meta:
-        model = Product
-        exclude = ("sold_amount", "owner")
 
 class ProductSerializer(ModelSerializer):
-    
+
     class Meta:
         model = Product
         fields = "__all__"
+        extra_kwargs = {
+            'owner': {'read_only': 'true'},
+            'sold_amount': {'read_only': 'true'}
+        }
+
+    def create(self, validated_data):
+        pd = Product(owner=self.context['request'].user)
+        pd.name = validated_data['name']
+        if validated_data.get('is_available'):
+            pd.is_available = validated_data['is_available']
+        if validated_data.get('picture'):
+            pd.picture = validated_data['picture']
+        if validated_data.get('description'):
+            pd.description = validated_data['description']
+        pd.save()
+        pd.categories.set(validated_data['categories'])
+        return pd
 
 class RatingSerializer(ModelSerializer):
     creator = UserSerializer()

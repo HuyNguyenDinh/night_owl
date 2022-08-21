@@ -39,10 +39,12 @@ class ProductViewSet(viewsets.ModelViewSet):
     pagination_class = BasePagination
     permission_classes = [permissions.AllowAny]
 
-    # def get_permissions(self):
-    #     if self.action in ["list", "retrieve"]:
-    #         return [permissions.AllowAny(), ]
-    #     return [BusinessPermission(), ]
+    #
+    def get_permissions(self):
+        if self.action in ["list", "retrieve"]:
+            return [permissions.AllowAny(), ]
+        return [BusinessPermission(), ]
+    #
 
     def get_queryset(self):
         products = Product.objects.all()
@@ -65,8 +67,6 @@ class ProductViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if self.action == 'retrieve':
             return ProductRetrieveSerializer
-        # elif self.action == 'create':
-            # return CreateProductSerializer
         return ProductSerializer
 
     @action(methods=['get'], detail=True, url_path='comments')

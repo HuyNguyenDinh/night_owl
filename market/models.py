@@ -1,3 +1,4 @@
+from hashlib import blake2b
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import MaxValueValidator, MinValueValidator
@@ -39,7 +40,7 @@ class User(AbstractUser):
     username = None
     email = models.EmailField(null=False, blank=False, unique=True)
     phone_number = models.CharField(unique=True, blank=False, null=False, max_length=50)
-    avatar = models.ImageField(upload_to='upload/%Y/%m')
+    avatar = models.ImageField(upload_to='upload/%Y/%m', null=True, blank=True)
     verified = models.BooleanField(default=False)
 
     USERNAME_FIELD = 'email'
@@ -78,7 +79,7 @@ class Category(models.Model):
         return self.name
 
 class Product(models.Model):
-    name = models.CharField(max_length= 255,unique=True, blank=False, null=False)
+    name = models.CharField(max_length= 255, blank=False, null=False)
     is_available = models.BooleanField(default=True)
     categories = models.ManyToManyField(Category)
     sold_amount = models.BigIntegerField(default=0, validators=[MinValueValidator(0)])
