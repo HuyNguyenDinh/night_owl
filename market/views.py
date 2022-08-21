@@ -10,7 +10,7 @@ from .paginators import *
 from django.db.models import Q
 # Create your views here.
 
-class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
+class UserViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.UpdateAPIView):
     queryset = User.objects.filter(is_active=True)
     parser_classes = [MultiPartParser, JSONParser]
     serializer_class = UserSerializer
@@ -72,7 +72,7 @@ class ProductViewSet(viewsets.ModelViewSet):
 
         cate_id = self.request.query_params.get('category_id')
         if cate_id is not None:
-            products = products.filter(categories_id=cate_id)
+            products = products.filter(categories=cate_id)
         
         return products
 
@@ -89,6 +89,11 @@ class ProductViewSet(viewsets.ModelViewSet):
             return Response(RatingSerializer(comments, many=True).data, status=status.HTTP_200_OK)
         return Response({'message': 'This product had no comment'}, status = status.HTTP_404_NOT_FOUND)
 
+    @action(methods=['get'], detail=True, url_path='add-comment')
+    def add_comment(self, request, pk):
+        pd = Product.objects.get(pk=pk)
+        pass
+    
     @action(methods=['get'], detail=True, url_path='options')
     def get_options(self, request, pk):
         options = Product.objects.get(pk=pk).option_set.all()

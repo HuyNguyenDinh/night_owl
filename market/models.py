@@ -1,4 +1,3 @@
-from hashlib import blake2b
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import MaxValueValidator, MinValueValidator
@@ -89,6 +88,10 @@ class Product(models.Model):
 
     def __str__(self) -> str:
         return self.name
+
+    @property
+    def min_price(self):
+        return Option.objects.filter(base_product=self).aggregate(models.Min('price')).get('price__min')
 
 class Order(models.Model):
     order_date = models.DateTimeField(auto_now_add=True)

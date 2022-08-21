@@ -1,5 +1,5 @@
 from xml.etree.ElementTree import Comment
-from rest_framework.serializers import  ModelSerializer
+from rest_framework.serializers import  ModelSerializer, ReadOnlyField
 from .models import *
 import cloudinary
 import cloudinary.uploader
@@ -44,13 +44,14 @@ class OptionsSerializer(ModelSerializer):
 
 
 class ProductSerializer(ModelSerializer):
+    min_price = ReadOnlyField()
 
     class Meta:
         model = Product
         fields = "__all__"
         extra_kwargs = {
             'owner': {'read_only': 'true'},
-            'sold_amount': {'read_only': 'true'}
+            'sold_amount': {'read_only': 'true'},
         }
 
     def create(self, validated_data):
@@ -72,6 +73,11 @@ class RatingSerializer(ModelSerializer):
     class Meta:
         model = Rating
         fields = "__all__"
+        extra_kwargs = {
+            'id': {'read_only': 'true'},
+            'creator': {'read_only': 'true'},
+            'product': {'read_only': 'true'},
+        }
 
 class ProductRetrieveSerializer(ModelSerializer):
     option_set = OptionsSerializer(many=True)
