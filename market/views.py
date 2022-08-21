@@ -1,6 +1,6 @@
 from xml.etree.ElementTree import Comment
 from rest_framework.response import Response
-from rest_framework.parsers import MultiPartParser, FileUploadParser
+from rest_framework.parsers import MultiPartParser, FileUploadParser, JSONParser
 from rest_framework.decorators import action
 from rest_framework import status, generics, viewsets, permissions
 from .models import *
@@ -12,7 +12,7 @@ from django.db.models import Q
 
 class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
     queryset = User.objects.filter(is_active=True)
-    parser_classes = [MultiPartParser, ]
+    parser_classes = [MultiPartParser, JSONParser]
     serializer_class = UserSerializer
 
     def get_parsers(self):
@@ -41,7 +41,7 @@ class CartDetailViewSet(viewsets.ModelViewSet):
         return CartDetail.objects.filter(customer = self.request.user.id)
 
 class ProductViewSet(viewsets.ModelViewSet):
-    parser_classes = [MultiPartParser, ]
+    parser_classes = [MultiPartParser, JSONParser]
     pagination_class = BasePagination
     permission_classes = [permissions.AllowAny]
 
