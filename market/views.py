@@ -1,3 +1,4 @@
+from multiprocessing import context
 from xml.etree.ElementTree import Comment
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FileUploadParser, JSONParser
@@ -55,12 +56,16 @@ class ProductViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ["list", "retrieve"]:
             return [permissions.AllowAny(), ]
-        return [BusinessPermission(), ]
+        elif self.action == 'add_comment':
+            return [permissions.IsAuthenticated(), ]
+        elif self.action == 'create':
+            return [BusinessPermission(), ]
+        return [BusinessPermission(), IsOwner()]
     #
 
     def get_queryset(self):
         products = Product.objects.all()
-        if self.action in ["update", "destroy"]:
+        if self.action in ["update", "destroy", "add_option"]:
             products = products.filter(owner=self.request.user.id)
         elif self.action in ["list", "retrieve"]:
             products = products.filter(is_available=True)
@@ -79,6 +84,10 @@ class ProductViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if self.action == 'retrieve':
             return ProductRetrieveSerializer
+        elif self.action == 'add_comment':
+            return CreateRatingSerializer
+        elif self.action == 'add_option':
+            return OptionSerializer
         return ProductSerializer
 
     @action(methods=['get'], detail=True, url_path='comments')
@@ -89,16 +98,40 @@ class ProductViewSet(viewsets.ModelViewSet):
             return Response(RatingSerializer(comments, many=True).data, status=status.HTTP_200_OK)
         return Response({'message': 'This product had no comment'}, status = status.HTTP_404_NOT_FOUND)
 
-    @action(methods=['get'], detail=True, url_path='add-comment')
+    @action(methods=['post'], detail=True, url_path='add-comment')
     def add_comment(self, request, pk):
         pd = Product.objects.get(pk=pk)
-        pass
+        serializer = CreateRatingSerializer(data=request.data)
+        print(request.data)
+        if serializer.is_valid():
+            serializer.save(creator=request.user, product=pd)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response({'message': 'not valid comment'}, status=status.HTTP_400_BAD_REQUEST)
     
+    @action(methods=['post'], detail=True, url_path='add-option')
+    def add_option(self, request, pk):
+        pd = Product.objects.get(pk=pk)
+        if pd.owner == request.user:
+            serializer = CreateOptionSerializer(data=request.data)
+            if serializer.is_valid():
+                obj = serializer.save(base_product=pd)
+                if request.data.getlist('picture_set'):
+                    for img in request.data.getlist('picture_set'):
+                        try:
+                            _ = Picture.objects.create(image=img, product_option=obj)
+                        except:
+                            return Response({'message': "added option to product but cannot add picture to options"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(serializer.data, status = status.HTTP_201_CREATED)
+            return Response({'message': "cannot add options to product"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'message': 'you are not the owner'}, status=status.HTTP_403_FORBIDDEN)
+
     @action(methods=['get'], detail=True, url_path='options')
     def get_options(self, request, pk):
         options = Product.objects.get(pk=pk).option_set.all()
         options = options.filter(unit_in_stock__gt=0)
-        return Response(OptionsSerializer(options, many=True).data, status=status.HTTP_200_OK)
+        if options:
+            return Response(OptionSerializer(options, many=True).data, status=status.HTTP_200_OK)
+        return Response(status=status.HTTP_404_NOT_FOUND)
     
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
@@ -113,12 +146,12 @@ class CategoryViewSet(viewsets.ModelViewSet):
 
 class OptionViewSet(viewsets.ViewSet, generics.UpdateAPIView, generics.DestroyAPIView):
     queryset = Option.objects.all()
-    serializer_class = OptionsSerializer
+    serializer_class = OptionSerializer
 
     def get_permissions(self):
         if self.action in ["list", "retrieve"]:
             return [permissions.AllowAny(), ]
-        return [NightOwlPermission(), ]
+        return [BusinessPermission(), IsOwner(), ]
 
 class OrderViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.RetrieveDestroyAPIView):
     serializer_class = OrderSerializer

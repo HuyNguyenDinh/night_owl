@@ -1,9 +1,9 @@
 from xml.etree.ElementTree import Comment
-from rest_framework.serializers import  ModelSerializer, ReadOnlyField
+from rest_framework.serializers import  ModelSerializer, ReadOnlyField, ImageField, ListField
 from .models import *
 import cloudinary
 import cloudinary.uploader
-
+from drf_writable_nested.serializers import WritableNestedModelSerializer
 
 
 class UserSerializer(ModelSerializer):
@@ -25,23 +25,32 @@ class CategorySerializer(ModelSerializer):
         model = Category
         fields = "__all__"
 
-class OptionsPictureSerializer(ModelSerializer):
-
+class OptionPictureSerializer(ModelSerializer):
     class Meta:
         model = Picture
         fields = "__all__"
         extra_kwargs = {
-            'image': {'write_only': 'true'},
-            'link': {'read_only': 'true'},
+            'product_option': {'read_only': 'true'}
         }
     
 
-class OptionsSerializer(ModelSerializer):
-    picture_set = OptionsPictureSerializer(many=True)
+class CreateOptionSerializer(ModelSerializer):
     class Meta:
         model = Option
-        fields = '__all__'
+        fields = "__all__"
+        extra_kwargs = {
+            'base_product': {'read_only': 'true'},
+            'picture_set': {'read_only': 'true'}
+        }
 
+class OptionSerializer(ModelSerializer):
+    picture_set = OptionPictureSerializer(many=True, required=False)
+    class Meta:
+        model = Option
+        fields = "__all__"
+        extra_kwargs = {
+            'base_product': {'read_only': 'true'}
+        }
 
 class ProductSerializer(ModelSerializer):
     min_price = ReadOnlyField()
@@ -69,6 +78,16 @@ class ProductSerializer(ModelSerializer):
 
 class RatingSerializer(ModelSerializer):
     creator = UserSerializer()
+    product = ProductSerializer()
+
+    class Meta:
+        model = Rating
+        fields = "__all__"
+        extra_kwargs = {
+            'id': {'read_only': 'true'},
+        }
+
+class CreateRatingSerializer(ModelSerializer):
 
     class Meta:
         model = Rating
@@ -80,7 +99,7 @@ class RatingSerializer(ModelSerializer):
         }
 
 class ProductRetrieveSerializer(ModelSerializer):
-    option_set = OptionsSerializer(many=True)
+    option_set = OptionSerializer(many=True)
     owner = UserSerializer()
     categories = CategorySerializer(many=True)
     rating_set = RatingSerializer(many=True)
