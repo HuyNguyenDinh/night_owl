@@ -54,7 +54,7 @@ class ProductViewSet(viewsets.ModelViewSet):
 
     #
     def get_permissions(self):
-        if self.action in ["list", "retrieve"]:
+        if self.action in ["list", "retrieve", "get_comments", "get_options"]:
             return [permissions.AllowAny(), ]
         elif self.action == 'add_comment':
             return [permissions.IsAuthenticated(), ]
@@ -101,17 +101,22 @@ class ProductViewSet(viewsets.ModelViewSet):
     @action(methods=['post'], detail=True, url_path='add-comment')
     def add_comment(self, request, pk):
         pd = Product.objects.get(pk=pk)
-        serializer = CreateRatingSerializer(data=request.data)
-        print(request.data)
-        if serializer.is_valid():
-            serializer.save(creator=request.user, product=pd)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response({'message': 'not valid comment'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            self.check_object_permissions(request, pd)
+            serializer = CreateRatingSerializer(data=request.data)
+            print(request.data)
+            if serializer.is_valid():
+                serializer.save(creator=request.user, product=pd)
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response({'message': 'not valid comment'}, status=status.HTTP_400_BAD_REQUEST)
+        except:
+            return Response({'message': 'please login to comment'}, status=status.HTTP_403_FORBIDDEN)
     
     @action(methods=['post'], detail=True, url_path='add-option')
     def add_option(self, request, pk):
         pd = Product.objects.get(pk=pk)
-        if pd.owner == request.user:
+        try:
+            self.check_object_permissions(request, pd)
             serializer = CreateOptionSerializer(data=request.data)
             if serializer.is_valid():
                 obj = serializer.save(base_product=pd)
@@ -123,7 +128,8 @@ class ProductViewSet(viewsets.ModelViewSet):
                             return Response({'message': "added option to product but cannot add picture to options"}, status=status.HTTP_400_BAD_REQUEST)
                 return Response(serializer.data, status = status.HTTP_201_CREATED)
             return Response({'message': "cannot add options to product"}, status=status.HTTP_400_BAD_REQUEST)
-        return Response({'message': 'you are not the owner'}, status=status.HTTP_403_FORBIDDEN)
+        except:
+            return Response({'message': 'you do not have permission'}, status=status.HTTP_403_FORBIDDEN)
 
     @action(methods=['get'], detail=True, url_path='options')
     def get_options(self, request, pk):
@@ -132,17 +138,17 @@ class ProductViewSet(viewsets.ModelViewSet):
         if options:
             return Response(OptionSerializer(options, many=True).data, status=status.HTTP_200_OK)
         return Response(status=status.HTTP_404_NOT_FOUND)
+            
     
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
     pagination_class = CategoryPagination
-    permission_classes = [permissions.AllowAny]
 
-    # def get_permissions(self):
-    #     if self.action in ["list", "retrieve"]:
-    #         return [permissions.AllowAny(), ]
-    #     return [NightOwlPermission(), ]
+    def get_permissions(self):
+        if self.action in ["list", "retrieve"]:
+            return [permissions.AllowAny(), ]
+        return [permissions.IsAdminUser(), ]
 
 class OptionViewSet(viewsets.ViewSet, generics.UpdateAPIView, generics.DestroyAPIView):
     queryset = Option.objects.all()
@@ -151,7 +157,24 @@ class OptionViewSet(viewsets.ViewSet, generics.UpdateAPIView, generics.DestroyAP
     def get_permissions(self):
         if self.action in ["list", "retrieve"]:
             return [permissions.AllowAny(), ]
-        return [BusinessPermission(), IsOwner(), ]
+        elif self.action == 'add_to_cart':
+            return [permissions.IsAuthenticated(), ]
+        return [BusinessPermission(), IsProductOptionOwner(), ]
+
+    def get_serializer_class(self):
+        if self.action == 'add_to_cart':
+            return CartSerializer
+        return OptionSerializer
+    
+    @action(methods=['post'], detail=True, url_path='add-to-cart')
+    def add_to_cart(self, request, pk):
+        op = Option.objects.get(pk=pk)
+        cart = CartSerializer(data=request.data)
+        if cart.is_valid():
+            cart.save(customer=request.user, product_option=op)
+            return Response(cart.data, status=status.HTTP_201_CREATED)
+        return Response({'message': 'cannot add product to your cart'}, status=status.HTTP_400_BAD_REQUEST)
+        
 
 class OrderViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.RetrieveDestroyAPIView):
     serializer_class = OrderSerializer

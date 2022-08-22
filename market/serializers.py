@@ -33,7 +33,6 @@ class OptionPictureSerializer(ModelSerializer):
             'product_option': {'read_only': 'true'}
         }
     
-
 class CreateOptionSerializer(ModelSerializer):
     class Meta:
         model = Option
@@ -52,6 +51,7 @@ class OptionSerializer(ModelSerializer):
             'base_product': {'read_only': 'true'}
         }
 
+# List product serializer
 class ProductSerializer(ModelSerializer):
     min_price = ReadOnlyField()
 
@@ -76,6 +76,7 @@ class ProductSerializer(ModelSerializer):
         pd.categories.set(validated_data['categories'])
         return pd
 
+# show rating
 class RatingSerializer(ModelSerializer):
     creator = UserSerializer()
     product = ProductSerializer()
@@ -87,6 +88,7 @@ class RatingSerializer(ModelSerializer):
             'id': {'read_only': 'true'},
         }
 
+# Create rating
 class CreateRatingSerializer(ModelSerializer):
 
     class Meta:
@@ -98,6 +100,7 @@ class CreateRatingSerializer(ModelSerializer):
             'product': {'read_only': 'true'},
         }
 
+# Get product detail
 class ProductRetrieveSerializer(ModelSerializer):
     option_set = OptionSerializer(many=True)
     owner = UserSerializer()
@@ -130,12 +133,35 @@ class BillSerializer(ModelSerializer):
         model = Bill
         fields = "__all__"
 
+# Show product option in cart detail
+class OptionInCartSerializer(ModelSerializer):
+    base_product = ProductSerializer(read_only=True)
+    class Meta:
+        model = Option
+        fields = "__all__"
+        depth = 2
 
+# Get User's cart detail
 class CartSerializer(ModelSerializer):
+    product_option = OptionInCartSerializer(read_only=True)
+
+    class Meta:
+        model = CartDetail
+        fields = "__all__"
+        extra_kwargs = {
+            'customer': {'read_only': 'true'},
+        }
+
+# Add to cart
+class AddCartSerializer(ModelSerializer):
     
     class Meta:
         model = CartDetail
         fields = "__all__"
+        extra_kwargs = {
+            'customer': {'read_only': 'true'},
+            'product_option': {'read_only': 'true'},
+        }
 
 class VoucherSerializer(ModelSerializer):
 
