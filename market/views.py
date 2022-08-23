@@ -1,7 +1,5 @@
-from multiprocessing import context
-from xml.etree.ElementTree import Comment
 from rest_framework.response import Response
-from rest_framework.parsers import MultiPartParser, FileUploadParser, JSONParser
+from rest_framework.parsers import MultiPartParser, JSONParser
 from rest_framework.decorators import action
 from rest_framework import status, generics, viewsets, permissions
 from .models import *
@@ -34,7 +32,7 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.UpdateAPIVi
             return [permissions.AllowAny(), ]
         return [permissions.IsAuthenticated(), ]
 
-class CartDetailViewSet(viewsets.ModelViewSet):
+class CartDetailViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = CartSerializer
 
@@ -68,7 +66,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         if self.action in ["update", "destroy", "add_option"]:
             products = products.filter(owner=self.request.user.id)
         elif self.action in ["list", "retrieve"]:
-            products = products.filter(is_available=True)
+            products = products.filter(option__isnull=False).distinct()
 
         search = self.request.query_params.get("search")
 
@@ -88,6 +86,8 @@ class ProductViewSet(viewsets.ModelViewSet):
             return CreateRatingSerializer
         elif self.action == 'add_option':
             return OptionSerializer
+        elif self.action == 'list':
+            return ListProductSerializer
         return ProductSerializer
 
     @action(methods=['get'], detail=True, url_path='comments')
@@ -117,6 +117,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         pd = Product.objects.get(pk=pk)
         try:
             self.check_object_permissions(request, pd)
+            # serializer = CreateOptionSerializer(data=request.data, many=True)
             serializer = CreateOptionSerializer(data=request.data)
             if serializer.is_valid():
                 obj = serializer.save(base_product=pd)

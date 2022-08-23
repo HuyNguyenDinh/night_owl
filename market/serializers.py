@@ -32,7 +32,8 @@ class OptionPictureSerializer(ModelSerializer):
         extra_kwargs = {
             'product_option': {'read_only': 'true'}
         }
-    
+
+# Create multiple options
 class CreateOptionSerializer(ModelSerializer):
     class Meta:
         model = Option
@@ -41,6 +42,9 @@ class CreateOptionSerializer(ModelSerializer):
             'base_product': {'read_only': 'true'},
             'picture_set': {'read_only': 'true'}
         }
+    
+    # def create(self, validated_data):
+    #     pictures = validated_data.pop('picture_set')
 
 class OptionSerializer(ModelSerializer):
     picture_set = OptionPictureSerializer(many=True, required=False)
@@ -52,6 +56,18 @@ class OptionSerializer(ModelSerializer):
         }
 
 # List product serializer
+class ListProductSerializer(ModelSerializer):
+    min_price = ReadOnlyField()
+    categories = CategorySerializer(many=True)
+    class Meta:
+        model = Product
+        fields = "__all__"
+        extra_kwargs = {
+            'owner': {'read_only': 'true'},
+            'sold_amount': {'read_only': 'true'},
+        }
+
+# Create product serializer
 class ProductSerializer(ModelSerializer):
     min_price = ReadOnlyField()
 
@@ -62,18 +78,11 @@ class ProductSerializer(ModelSerializer):
             'owner': {'read_only': 'true'},
             'sold_amount': {'read_only': 'true'},
         }
-
+    
     def create(self, validated_data):
-        pd = Product(owner=self.context['request'].user)
-        pd.name = validated_data['name']
-        if validated_data.get('is_available'):
-            pd.is_available = validated_data['is_available']
-        if validated_data.get('picture'):
-            pd.picture = validated_data['picture']
-        if validated_data.get('description'):
-            pd.description = validated_data['description']
-        pd.save()
-        pd.categories.set(validated_data['categories'])
+        category_set = validated_data.pop('categories')
+        pd = Product.objects.create(owner=self.context['request'].user, **validated_data)
+        pd.categories.set(category_set)
         return pd
 
 # show rating
