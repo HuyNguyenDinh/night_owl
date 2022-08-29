@@ -1,3 +1,4 @@
+from multiprocessing import context
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, JSONParser
 from rest_framework.decorators import action
@@ -13,6 +14,7 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.UpdateAPIVi
     queryset = User.objects.filter(is_active=True)
     parser_classes = [MultiPartParser, JSONParser]
     serializer_class = UserSerializer
+    pagination_class = None
 
     def get_parsers(self):
         if getattr(self, 'swagger_fake_view', False):
@@ -32,12 +34,37 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.UpdateAPIVi
             return [permissions.AllowAny(), ]
         return [permissions.IsAuthenticated(), ]
 
+class AddressViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsCreator]
+    serializer_class = AddressSerializer
+
+    def get_queryset(self):
+        return Address.objects.filter(creator__id = self.request.user.id)
+    
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid(raise_exception=True):
+            serializer.save(creator=request.user)
+            headers = self.get_success_headers(serializer.data)
+            return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        return Response({'message': 'cannot add address to your account'}, status=status.HTTP_400_BAD_REQUEST)
+
 class CartDetailViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = CartSerializer
+    pagination_class = None
 
     def get_queryset(self):
         return CartDetail.objects.filter(customer = self.request.user.id)
+
+    @action(methods=['get'], detail=False, url_path='get-cart-groupby-owner')
+    def get_cart_groupby_owner(self, request):
+        cart = CartDetail.objects.filter(customer__id = request.user.id).all().values_list('id')
+        owner = User.objects.filter(product__option__cartdetail__id__in=cart).distinct()
+        carts = CartInStoreSerializer(owner, context={'request': request}, many=True)
+        if carts:
+            return Response(carts.data, status=status.HTTP_200_OK)
+        return Response({'message': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
 
 class ProductViewSet(viewsets.ModelViewSet):
     parser_classes = [MultiPartParser, JSONParser]
@@ -50,7 +77,6 @@ class ProductViewSet(viewsets.ModelViewSet):
 
         return super().get_parsers()
 
-    #
     def get_permissions(self):
         if self.action in ["list", "retrieve", "get_comments", "get_options"]:
             return [permissions.AllowAny(), ]
@@ -59,7 +85,6 @@ class ProductViewSet(viewsets.ModelViewSet):
         elif self.action == 'create':
             return [BusinessPermission(), ]
         return [BusinessPermission(), IsOwner()]
-    #
 
     def get_queryset(self):
         products = Product.objects.all()
@@ -185,6 +210,27 @@ class OrderViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.RetrieveDe
     def get_queryset(self):
         orders = Order.objects.filter(Q(customer = self.request.user.id) | Q(store = self.request.user.id))
         return orders
+
+    def create(self, request, *args, **kwargs):
+        list_cart = request.data.get('list_cart')
+        if list_cart:
+            carts = CartDetail.objects.filter(customer__id=request.user.id, id__in=list_cart)
+            if carts:
+                stores = User.objects.filter(product__option__cartdetail__in=carts).distinct()
+                for store in stores:
+                    if store.id == request.user.id:
+                        continue
+                    cart_order = carts.filter(product_option__base_product__owner=store)
+                    if cart_order:
+                        serializer = OrderSerializer(data=request.data)
+                        if serializer.is_valid(raise_exception=True):
+                            order = serializer.save(store=store, customer=request.user)
+                            for c in cart_order:
+                                _ = OrderDetail.objects.create(quantity=c.quantity, product_option= c.product_option, unit_price= c.product_option.price, order=order)
+                            cart_order.delete()
+                return Response({'message': 'Successful, please check your order detail as soon as to report or cancel if something wrong'}, status=status.HTTP_201_CREATED)
+            return Response({'message': 'wrong cart id, not found cart'}, status=status.HTTP_404_NOT_FOUND)
+        return Response({'message': 'you must add array of your cart id'}, status=status.HTTP_406_NOT_ACCEPTABLE)
 
 class OrderDetailViewSet(viewsets.ModelViewSet):
     queryset = OrderDetail.objects.all()

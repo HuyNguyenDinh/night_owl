@@ -111,14 +111,6 @@ class Order(models.Model):
     )
     status = models.IntegerField(choices=STATUS_CHOICES, default=0)
 
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=['customer', 'store'],
-                name = 'customer_order_store'
-            )
-        ]
-
 
 class Option(models.Model):
     unit = models.CharField(max_length=255, blank=False, null=False)
@@ -142,7 +134,7 @@ class OrderDetail(models.Model):
     quantity = models.PositiveIntegerField(validators=[MinValueValidator(1)])
     unit_price = models.DecimalField(max_digits=20, decimal_places=2, validators=[MinValueValidator(1)], default=1)
     order = models.ForeignKey(Order, on_delete=models.SET_NULL, null=True)
-    product_option = models.OneToOneField(Option, on_delete=models.SET_NULL, null=True)
+    product_option = models.ForeignKey(Option, on_delete=models.SET_NULL, null=True)
 
 class Bill(models.Model):
     value = models.DecimalField(max_digits=20, decimal_places=2,validators=[MinValueValidator(0)], null=False, blank=False)

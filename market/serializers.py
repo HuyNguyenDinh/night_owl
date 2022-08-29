@@ -1,17 +1,26 @@
-from xml.etree.ElementTree import Comment
-from rest_framework.serializers import  ModelSerializer, ReadOnlyField, ImageField, ListField
+from rest_framework.serializers import  ModelSerializer, ReadOnlyField, ListField, IntegerField, SerializerMethodField
 from .models import *
 import cloudinary
 import cloudinary.uploader
-from drf_writable_nested.serializers import WritableNestedModelSerializer
 
+
+class AddressSerializer(ModelSerializer):
+
+    class Meta:
+        model = Address
+        exclude = ["creator"]
 
 class UserSerializer(ModelSerializer):
+    address_set = AddressSerializer(many=True, required=False)
     class Meta:
         model = User
-        fields = ['id', 'first_name', 'last_name', 'email', 'phone_number', 'is_staff', 'is_business', 'password', 'is_active', 'verified', 'provider', 'avatar']
+        fields = ['id', 'first_name', 'last_name', 'email', 'phone_number', 'is_staff', 'is_business', 'password', 'is_active', 'verified', 'provider', 'avatar', 'address_set']
         extra_kwargs = {
             'password': {'write_only': 'true'},
+            'is_staff': {'read_only': 'true'},
+            'is_business': {'read_only': 'true'},
+            'verified': {'read_only': 'true'},
+            'is_active': {'read_only': 'true'},
         }
     
     def create(self, validated_data):
@@ -121,20 +130,30 @@ class ProductRetrieveSerializer(ModelSerializer):
         fields = "__all__"
 
 class OrderDetailSerializer(ModelSerializer):
+    product_option = OptionSerializer()
     class Meta:
         model = OrderDetail
         fields = "__all__"
 
 class OrderSerializer(ModelSerializer):
+    list_cart = ListField(
+        child = IntegerField(),
+        write_only=True
+    )
+    orderdetail_set = OrderDetailSerializer(many=True, read_only=True)
     class Meta:
         model = Order
-        fields = "__all__"
-
-class AddressSerializer(ModelSerializer):
-
-    class Meta:
-        model = Address
-        fields = "__all__"
+        exclude = ["store", "customer"]
+        extra_kwargs = {
+            'status': {'read_only':'true'},
+            'customer': {'read_only': 'true'},
+            'store': {'read_only': 'true'},
+            'can_destroy': {'read_only': 'true'},
+        }
+    
+    def create(self, validated_data):
+        _ = validated_data.pop('list_cart')
+        return super().create(validated_data)
 
 class BillSerializer(ModelSerializer):
 
@@ -160,6 +179,23 @@ class CartSerializer(ModelSerializer):
         extra_kwargs = {
             'customer': {'read_only': 'true'},
         }
+
+    def to_representation(self, instance):
+        return super().to_representation(instance)
+
+class CartInStoreSerializer(ModelSerializer):
+    carts = SerializerMethodField('get_carts_user')
+    address_set = AddressSerializer(many=True, required=False)
+
+    class Meta:
+        model = User
+        fields = ['id', 'first_name', 'last_name', 'avatar', 'address_set', 'carts']
+    
+    def get_carts_user(self, obj):
+        carts = CartDetail.objects.filter(product_option__base_product__owner=obj, customer=self.context.get('request').user)
+        serializer = CartSerializer(carts, many=True)
+        return serializer.data
+
 
 # Add to cart
 class AddCartSerializer(ModelSerializer):
