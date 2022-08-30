@@ -1,4 +1,5 @@
 from multiprocessing import context
+from urllib import request
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, JSONParser
 from rest_framework.decorators import action
@@ -38,6 +39,10 @@ class AddressViewSet(viewsets.ModelViewSet):
     permission_classes = [IsCreator]
     serializer_class = AddressSerializer
 
+    def get_permissions(self):
+        if action == 'create':
+            return [permissions.IsAuthenticated(), ]
+        return [IsCreator(), ]
     def get_queryset(self):
         return Address.objects.filter(creator__id = self.request.user.id)
     
@@ -233,9 +238,15 @@ class OrderViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.RetrieveDe
         return Response({'message': 'you must add array of your cart id'}, status=status.HTTP_406_NOT_ACCEPTABLE)
 
 class OrderDetailViewSet(viewsets.ModelViewSet):
-    queryset = OrderDetail.objects.all()
     serializer_class = OrderDetailSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        status = self.request.query_params.get('status')
+        ordd = OrderDetail.objects.filter(Q(order__customer=self.request.user) | Q(order__store=self.request.user))
+        if status in [*range(len(Order.STATUS_CHOICES))]:
+            ordd.filter(order__status=status)
+        return ordd
 
 class BillViewSet(viewsets.ModelViewSet):
     queryset = Bill.objects.all()

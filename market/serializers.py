@@ -129,8 +129,18 @@ class ProductRetrieveSerializer(ModelSerializer):
         model = Product
         fields = "__all__"
 
+class OptionInOrderDetailSerializer(ModelSerializer):
+    base_product = ProductSerializer()
+    picture_set = OptionPictureSerializer(many=True, required=False)
+    class Meta:
+        model = Option
+        fields = "__all__"
+        extra_kwargs = {
+            'base_product': {'read_only': 'true'}
+        }
+
 class OrderDetailSerializer(ModelSerializer):
-    product_option = OptionSerializer()
+    product_option = OptionInOrderDetailSerializer(read_only=True)
     class Meta:
         model = OrderDetail
         fields = "__all__"
