@@ -1,7 +1,8 @@
-from rest_framework.serializers import  ModelSerializer, ReadOnlyField, ListField, IntegerField, SerializerMethodField
+from rest_framework.serializers import  ModelSerializer, ReadOnlyField, ListField, IntegerField, SerializerMethodField, Serializer
 from .models import *
 import cloudinary
 import cloudinary.uploader
+from django.db.models import Sum, F
 
 
 class AddressSerializer(ModelSerializer):
@@ -22,12 +23,18 @@ class UserSerializer(ModelSerializer):
             'verified': {'read_only': 'true'},
             'is_active': {'read_only': 'true'},
         }
-    
+
     def create(self, validated_data):
         user = User(**validated_data)
         user.set_password(validated_data['password'])
         user.save()
         return user
+    
+    
+class UserLessInformationSerializer(ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'first_name', 'last_name', 'phone_number', 'avatar']
 
 class CategorySerializer(ModelSerializer):
     class Meta:
@@ -129,12 +136,17 @@ class ProductRetrieveSerializer(ModelSerializer):
         model = Product
         fields = "__all__"
 
+# Get product id, name and picture
+class ProductLessInformationSerializer(ModelSerializer):
+    class Meta:
+        model = Product
+        fields = ['id', 'name', 'picture']
+
 class OptionInOrderDetailSerializer(ModelSerializer):
-    base_product = ProductSerializer()
-    picture_set = OptionPictureSerializer(many=True, required=False)
+    base_product = ProductLessInformationSerializer()
     class Meta:
         model = Option
-        fields = "__all__"
+        fields = ['id', 'unit', 'base_product', 'price']
         extra_kwargs = {
             'base_product': {'read_only': 'true'}
         }
@@ -151,19 +163,26 @@ class OrderSerializer(ModelSerializer):
         write_only=True
     )
     orderdetail_set = OrderDetailSerializer(many=True, read_only=True)
+    cost = SerializerMethodField(method_name='calculate_temp_price', read_only=True)
+    store = UserLessInformationSerializer(read_only=True)
+    customer = UserLessInformationSerializer(read_only=True)
     class Meta:
         model = Order
-        exclude = ["store", "customer"]
+        fields = "__all__"
         extra_kwargs = {
             'status': {'read_only':'true'},
-            'customer': {'read_only': 'true'},
-            'store': {'read_only': 'true'},
             'can_destroy': {'read_only': 'true'},
+            'store' : {'read_only': 'true'},
+            'customer': {'read_only': 'true'},
         }
     
     def create(self, validated_data):
         _ = validated_data.pop('list_cart')
         return super().create(validated_data)
+
+    def calculate_temp_price(self, obj):
+        order_details = OrderDetail.objects.filter(order=obj)
+        return order_details.aggregate(total_price = Sum(F('quantity') * F('unit_price')))['total_price']
 
 class BillSerializer(ModelSerializer):
 
@@ -194,12 +213,18 @@ class CartSerializer(ModelSerializer):
         return super().to_representation(instance)
 
 class CartInStoreSerializer(ModelSerializer):
-    carts = SerializerMethodField('get_carts_user')
-    address_set = AddressSerializer(many=True, required=False)
+    carts = SerializerMethodField('get_carts_user', read_only=True)
+    address_set = AddressSerializer(many=True, read_only=True)
 
     class Meta:
         model = User
         fields = ['id', 'first_name', 'last_name', 'avatar', 'address_set', 'carts']
+        extra_kwargs = {
+            'id': {'read_only': 'true'},
+            'first_name': {'read_only': 'true'},
+            'last_name': {'read_only': 'true'},
+            'avatar': {'read_only': 'true'},
+        }
     
     def get_carts_user(self, obj):
         carts = CartDetail.objects.filter(product_option__base_product__owner=obj, customer=self.context.get('request').user)

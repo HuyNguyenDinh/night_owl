@@ -11,3 +11,6 @@ class ProductPagination(PageNumberPagination):
 
 class CommentPagination(PageNumberPagination):
     page_size = 10
+
+class OrderPagination(PageNumberPagination):
+    page_size = 5

@@ -104,10 +104,11 @@ class Order(models.Model):
     voucher_apply = models.OneToOneField('Voucher', on_delete=models.SET_NULL, null=True)
 
     STATUS_CHOICES = (
-        (0, 'Approving'),
-        (1, 'Pending'),
-        (2, 'Completed'),
-        (3, 'Canceled'),
+        (0, 'UnCheckout'),
+        (1, 'Approving'),
+        (2, 'Pending'),
+        (3, 'Completed'),
+        (4, 'Canceled'),
     )
     status = models.IntegerField(choices=STATUS_CHOICES, default=0)
 
@@ -135,6 +136,7 @@ class OrderDetail(models.Model):
     unit_price = models.DecimalField(max_digits=20, decimal_places=2, validators=[MinValueValidator(1)], default=1)
     order = models.ForeignKey(Order, on_delete=models.SET_NULL, null=True)
     product_option = models.ForeignKey(Option, on_delete=models.SET_NULL, null=True)
+    cart_id = models.ForeignKey('CartDetail', on_delete=models.SET_NULL, null=True)
 
 class Bill(models.Model):
     value = models.DecimalField(max_digits=20, decimal_places=2,validators=[MinValueValidator(0)], null=False, blank=False)
@@ -158,5 +160,7 @@ class Voucher(models.Model):
     discount = models.DecimalField(max_digits=20, decimal_places=2, validators=[MinValueValidator(0)], null=False, blank=False)
     start_date = models.DateTimeField(auto_now_add=True)
     end_date = models.DateTimeField(null=True, blank=True)
+    code = models.TextField(default='nightowl', unique=True)
+    is_percentage = models.BooleanField(default=False)
     products = models.ManyToManyField(Product)
     creator = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
