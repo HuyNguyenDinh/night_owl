@@ -239,7 +239,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                         if serializer.is_valid(raise_exception=True):
                             order = serializer.save(store=store, customer=request.user)
                             for c in cart_order:
-                                _ = OrderDetail.objects.create(quantity=c.quantity, product_option= c.product_option, unit_price= c.product_option.price, order=order, cart_id=c.id)
+                                _ = OrderDetail.objects.create(quantity=c.quantity, product_option= c.product_option, unit_price= c.product_option.price, order=order, cart_id=c)
                             result.append(order)
                 return Response(OrderSerializer(result, many=True).data, status=status.HTTP_201_CREATED)
             return Response({'message': 'wrong cart id, not found cart'}, status=status.HTTP_404_NOT_FOUND)
