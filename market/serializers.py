@@ -1,4 +1,4 @@
-from rest_framework.serializers import  ModelSerializer, ReadOnlyField, ListField, IntegerField, SerializerMethodField, Serializer
+from rest_framework.serializers import  ModelSerializer, ReadOnlyField, ListField, IntegerField, SerializerMethodField, ImageField
 from .models import *
 import cloudinary
 import cloudinary.uploader
@@ -12,10 +12,10 @@ class AddressSerializer(ModelSerializer):
         exclude = ["creator"]
 
 class UserSerializer(ModelSerializer):
-    address_set = AddressSerializer(many=True, required=False)
+    address = AddressSerializer(required=False)
     class Meta:
         model = User
-        fields = ['id', 'first_name', 'last_name', 'email', 'phone_number', 'is_staff', 'is_business', 'password', 'is_active', 'verified', 'provider', 'avatar', 'address_set']
+        fields = ['id', 'first_name', 'last_name', 'email', 'phone_number', 'is_staff', 'is_business', 'password', 'is_active', 'verified', 'provider', 'avatar', 'address']
         extra_kwargs = {
             'password': {'write_only': 'true'},
             'is_staff': {'read_only': 'true'},
@@ -51,16 +51,23 @@ class OptionPictureSerializer(ModelSerializer):
 
 # Create multiple options
 class CreateOptionSerializer(ModelSerializer):
+    image_set = ListField(
+        child = ImageField(),
+        write_only=True
+    )
+    picture_set = OptionPictureSerializer(many=True, read_only=True)
     class Meta:
         model = Option
         fields = "__all__"
         extra_kwargs = {
             'base_product': {'read_only': 'true'},
-            'picture_set': {'read_only': 'true'}
         }
     
-    # def create(self, validated_data):
-    #     pictures = validated_data.pop('picture_set')
+    def create(self, validated_data):
+        pictures = validated_data.pop('image_set')
+        option = Option(**validated_data)
+        option.save()
+        return option
 
 class OptionSerializer(ModelSerializer):
     picture_set = OptionPictureSerializer(many=True, required=False)
@@ -214,11 +221,11 @@ class CartSerializer(ModelSerializer):
 
 class CartInStoreSerializer(ModelSerializer):
     carts = SerializerMethodField('get_carts_user', read_only=True)
-    address_set = AddressSerializer(many=True, read_only=True)
+    address = AddressSerializer(read_only=True)
 
     class Meta:
         model = User
-        fields = ['id', 'first_name', 'last_name', 'avatar', 'address_set', 'carts']
+        fields = ['id', 'first_name', 'last_name', 'avatar', 'address', 'carts']
         extra_kwargs = {
             'id': {'read_only': 'true'},
             'first_name': {'read_only': 'true'},

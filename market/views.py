@@ -1,3 +1,4 @@
+from asyncio.base_subprocess import ReadSubprocessPipeProto
 from urllib import request
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, JSONParser
@@ -151,8 +152,8 @@ class ProductViewSet(viewsets.ModelViewSet):
             serializer = CreateOptionSerializer(data=request.data)
             if serializer.is_valid():
                 obj = serializer.save(base_product=pd)
-                if request.data.getlist('picture_set'):
-                    for img in request.data.getlist('picture_set'):
+                if request.data.getlist('image_set'):
+                    for img in request.data.getlist('image_set'):
                         try:
                             _ = Picture.objects.create(image=img, product_option=obj)
                         except:
@@ -253,17 +254,25 @@ class OrderViewSet(viewsets.ModelViewSet):
             return Response(status=status.HTTP_204_NO_CONTENT)
         return Response({'message': 'not found uncheckout order'}, status=status.HTTP_404_NOT_FOUND)
 
-    @action(methods=['post'], detail=False, url_path='checkout_order')
-    def checkout(self, request, pk):
+    @action(methods=['get'], detail=False, url_path='checkout_order')
+    def checkout(self, request):
         order = Order.objects.filter(customer = request.user.id, status=0)
         if order:
-            order.orderdetail_set.cart_id.delete()
+            ####
+            odd_id_list = order.values_list('orderdetail__cart_id', flat=True)
             voucher_code = request.data.get('voucher')
-            if voucher:
-                voucher = Voucher.objects.first(code = voucher_code)
-                if voucher:
-                    pass
-            return Response({'message':'product has out of stock or something not correct'}, status=status.HTTP_400_BAD_REQUEST)
+            success = False
+            try:
+                for o in order:
+                    result = checkout_order(order_id=order.id, voucher_code=voucher_code)
+                    if result is None:
+                        raise Exception
+                success = True
+            except:
+                return Response({'message':'some product options has out of stock'}, status=status.HTTP_400_BAD_REQUEST)
+            if success:
+                return Response(OrderSerializer(result).data, status=status.HTTP_202_ACCEPTED)
+            return Response({'message': 'can not checkout the orders'}, status=status.HTTP_406_NOT_ACCEPTABLE)
         return Response({'message': 'can not found the orders uncheckout'}, status=status.HTTP_404_NOT_FOUND)
 
 class OrderDetailViewSet(viewsets.ModelViewSet):

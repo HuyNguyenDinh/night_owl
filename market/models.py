@@ -65,11 +65,12 @@ class Address(models.Model):
     district_id = models.IntegerField(blank=False, null=False)
     ward_id = models.IntegerField(blank=False, null=False)
     street = models.CharField(max_length=255)
+    full_address = models.TextField(default="ABC")
     note = models.TextField(null=True, blank=True)
-    creator = models.ForeignKey(User, on_delete=models.CASCADE)
+    creator = models.OneToOneField(User, on_delete=models.CASCADE)
     
     def __str__(self) -> str:
-        return str(self.ward_id) + ', ' + str(self.district_id) + ', ' + str(self.province_id) + ', ' + self.country
+        return self.full_address
 
 class Category(models.Model):
     name = models.CharField(max_length= 255,unique=True, blank=False, null=False)
@@ -97,6 +98,7 @@ class Order(models.Model):
     order_date = models.DateTimeField(auto_now_add=True)
     can_destroy = models.BooleanField(default=True)
     completed_date = models.DateField(null=True)
+    shipping_code = models.CharField(max_length=255, blank=True, null=True)
     total_shipping_fee = models.DecimalField(max_digits=20, decimal_places=2, default=0)
     note = models.TextField(null=True, blank=True)
     customer = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='customer_order')
@@ -117,9 +119,9 @@ class Option(models.Model):
     unit = models.CharField(max_length=255, blank=False, null=False)
     unit_in_stock = models.BigIntegerField(default=1, null=False, blank=False)
     price = models.DecimalField(max_digits=20, decimal_places=2)
-    weight = models.PositiveIntegerField(default=1)
+    weight = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1)])
     height = models.PositiveIntegerField(default=1)
-    width = models.PositiveBigIntegerField(default=1)
+    width = models.PositiveIntegerField(default=1)
     length = models.PositiveIntegerField(default=1)
 
     base_product = models.ForeignKey(Product, on_delete=models.CASCADE)
