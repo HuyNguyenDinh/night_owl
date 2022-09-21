@@ -90,6 +90,11 @@ class ProductViewSet(viewsets.ModelViewSet):
 
         return super().get_parsers()
 
+    # def get_serializer_class(self):
+    #     if action == 'add_option':
+    #         return CreateOptionSerializer
+    #     return super().get_serializer_class()
+
     def get_permissions(self):
         if self.action in ["list", "retrieve", "get_comments", "get_options"]:
             return [permissions.AllowAny(), ]
@@ -117,7 +122,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         elif self.action == 'add_comment':
             return CreateRatingSerializer
         elif self.action == 'add_option':
-            return OptionSerializer
+            return CreateOptionSerializer
         elif self.action == 'list':
             return ListProductSerializer
         return ProductSerializer
@@ -170,8 +175,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         if options:
             return Response(OptionSerializer(options, many=True).data, status=status.HTTP_200_OK)
         return Response(status=status.HTTP_404_NOT_FOUND)
-            
-    
+
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
@@ -209,12 +213,18 @@ class OptionViewSet(viewsets.ViewSet, generics.UpdateAPIView, generics.DestroyAP
         
 
 class OrderViewSet(viewsets.ModelViewSet):
-    serializer_class = OrderSerializer
     pagination_class = OrderPagination
     permission_classes = [permissions.IsAuthenticated,]
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
     filterset_fields = ['status', 'id', 'can_destroy', 'completed_date', 'order_date']
     ordering_fields = ['completed_date', 'order_date', 'bill__value']
+
+    def get_serializer_class(self):
+        if self.action in ["list"]:
+            return ListOrderSerializer
+        elif self.action == 'checkout':
+            return CheckoutOrderSerializer
+        return OrderSerializer
 
     def get_queryset(self):
         orders = Order.objects.filter(Q(customer = self.request.user.id) | Q(store = self.request.user.id))
@@ -228,20 +238,9 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         list_cart = request.data.get('list_cart')
-        result = []
         if list_cart:
-            carts = CartDetail.objects.filter(customer__id=request.user.id, id__in=list_cart)
-            if carts:
-                stores = User.objects.filter(product__option__cartdetail__in=carts).distinct().exclude(id = request.user.id)
-                for store in stores:
-                    cart_order = carts.filter(product_option__base_product__owner=store)
-                    if cart_order:
-                        serializer = OrderSerializer(data=request.data)
-                        if serializer.is_valid(raise_exception=True):
-                            order = serializer.save(store=store, customer=request.user)
-                            for c in cart_order:
-                                _ = OrderDetail.objects.create(quantity=c.quantity, product_option= c.product_option, unit_price= c.product_option.price, order=order, cart_id=c)
-                            result.append(order)
+            result = make_order_from_list_cart(list_cart_id=list_cart, user_id=request.user.id, data=request.data)
+            if result:
                 return Response(OrderSerializer(result, many=True).data, status=status.HTTP_201_CREATED)
             return Response({'message': 'wrong cart id, not found cart'}, status=status.HTTP_404_NOT_FOUND)
         return Response({'message': 'you must add array of your cart id'}, status=status.HTTP_406_NOT_ACCEPTABLE)
@@ -254,23 +253,25 @@ class OrderViewSet(viewsets.ModelViewSet):
             return Response(status=status.HTTP_204_NO_CONTENT)
         return Response({'message': 'not found uncheckout order'}, status=status.HTTP_404_NOT_FOUND)
 
-    @action(methods=['get'], detail=False, url_path='checkout_order')
+    @action(methods=['post'], detail=False, url_path='checkout_order')
     def checkout(self, request):
         order = Order.objects.filter(customer = request.user.id, status=0)
         if order:
-            ####
-            odd_id_list = order.values_list('orderdetail__cart_id', flat=True)
-            voucher_code = request.data.get('voucher')
+            odd_id_list = order.values_list('orderdetail__cart_id__id', flat=True)
+            voucher_code = request.data.get('list_voucher')
             success = False
             try:
                 for o in order:
-                    result = checkout_order(order_id=order.id, voucher_code=voucher_code)
+                    result = checkout_order(order_id=o.id, voucher_code=voucher_code)
                     if result is None:
                         raise Exception
                 success = True
             except:
                 return Response({'message':'some product options has out of stock'}, status=status.HTTP_400_BAD_REQUEST)
             if success:
+                cart = CartDetail.objects.filter(orderdetail__id__in=odd_id_list)
+                if cart.count() > 0:
+                    cart.delete()
                 return Response(OrderSerializer(result).data, status=status.HTTP_202_ACCEPTED)
             return Response({'message': 'can not checkout the orders'}, status=status.HTTP_406_NOT_ACCEPTABLE)
         return Response({'message': 'can not found the orders uncheckout'}, status=status.HTTP_404_NOT_FOUND)

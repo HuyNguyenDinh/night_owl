@@ -63,7 +63,7 @@ class Address(models.Model):
     country = models.CharField(max_length=100, default="Viet Nam")
     province_id = models.IntegerField(blank=False, null=False)
     district_id = models.IntegerField(blank=False, null=False)
-    ward_id = models.IntegerField(blank=False, null=False)
+    ward_id = models.CharField(max_length=255, blank=False, null=False)
     street = models.CharField(max_length=255)
     full_address = models.TextField(default="ABC")
     note = models.TextField(null=True, blank=True)
@@ -114,10 +114,16 @@ class Order(models.Model):
     )
     status = models.IntegerField(choices=STATUS_CHOICES, default=0)
 
+    SHIPPING_CHOICES = (
+        (0, 'COD'),
+        (1, 'OnlinePayment')
+    )
+    shipping = models.IntegerField(choices=SHIPPING_CHOICES, default=0)
+
 
 class Option(models.Model):
     unit = models.CharField(max_length=255, blank=False, null=False)
-    unit_in_stock = models.BigIntegerField(default=1, null=False, blank=False)
+    unit_in_stock = models.PositiveBigIntegerField(default=1, null=False, blank=False)
     price = models.DecimalField(max_digits=20, decimal_places=2)
     weight = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1)])
     height = models.PositiveIntegerField(default=1)
@@ -127,7 +133,7 @@ class Option(models.Model):
     base_product = models.ForeignKey(Product, on_delete=models.CASCADE)
 
     def __str__(self) -> str:
-        return self.unit
+        return self.base_product.name + " " + self.unit
 
 class Picture(models.Model):
     image = models.ImageField(upload_to='night_owl/product')

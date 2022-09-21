@@ -4,6 +4,8 @@ from django.db.models import Sum, F, Max
 from django.db import transaction
 import requests
 import json
+from market.serializers import *
+import decimal
 
 ############ Order #############
 # Checkout Order: Decrease unit in stock of option in order details ->
@@ -38,9 +40,11 @@ def calculate_order_value_with_voucher(voucher, value):
 
 def calculate_value(order_id, voucher_id=None):
     order = Order.objects.get(pk=order_id)
+    print(order.id)
     value = 0
     if order:
-        value = order.orderdetail_set.aggregate(total_price = Sum(F('quantity') * F('unit_price')))['total_price'] + order.total_shipping_fee
+        value = order.orderdetail_set.aggregate(total_price = Sum(F('quantity') * F('unit_price')))['total_price']
+        print(type(value))
         if voucher_id:
             voucher = Voucher.objects.get(pk=voucher_id)
             if voucher:
@@ -53,10 +57,11 @@ def calculate_value(order_id, voucher_id=None):
 @transaction.atomic
 def decrease_option_unit_instock(orderdetail_id):
     odd = OrderDetail.objects.get(pk=orderdetail_id)
+    print(odd.id)
     option = Option.objects.select_for_update().get(orderdetail__id=orderdetail_id)
+    print(option.id)
     option.unit_in_stock = option.unit_in_stock - odd.quantity
-    if odd.product_option.unit_in_stock < 0:
-        raise Exception
+    print(option.unit_in_stock)
     option.save()
     option.refresh_from_db()
     return option
@@ -97,12 +102,12 @@ def create_shipping_order(order_id):
             "return_phone": seller.phone_number,
             "return_address": seller.address.full_address,
             "return_district_id": None,
-            "return_ward_code": str(seller.address.ward_id),
+            "return_ward_code": seller.address.ward_id,
             "client_order_code": str(order.id),
             "to_name": customer.last_name + " " + customer.first_name,
             "to_phone": customer.phone_number,
             "to_address": customer.address.full_address,
-            "to_ward_code": str(customer.address.ward_id),
+            "to_ward_code": customer.address.ward_id,
             "to_district_id": customer.address.district_id,
             "cod_amount": int(value),
             "content": order.note,
@@ -131,21 +136,30 @@ def create_shipping_order(order_id):
 @transaction.atomic
 def checkout_order(order_id, voucher_code=None):
     order = Order.objects.select_for_update().get(pk=order_id)
+    print(order.id)
     for i in order.orderdetail_set.all():
+        print("Order detail", i.id)
         decrease_option_unit_instock(i.id)
 
-    # decrease update status
+    # update status
     order.status = 1
     order.save()
-
+    print(order.id)
     # calculate value to create bill
-    voucher = Voucher.objects.filter(code = voucher_code)
     value = 0
+    voucher = None
+    if voucher_code and voucher_code.get(order.id):
+        print('voucher id got')
+        voucher = Voucher.objects.filter(code = voucher_code)
     if voucher:
+        print('voucher got')
         value=calculate_value(order_id=order.id, voucher_id=voucher[0].id)
     else:
+        print('no voucher')
         value=calculate_value(order_id=order.id)
+    print('calculated value')
     _ = Bill.objects.create(value=value, order_payed=order, customer=order.customer)
+    print('created bill')
     order.refresh_from_db()
     return order
 
@@ -159,7 +173,7 @@ def calculate_shipping_fee(order_id):
         "from_district_id":store.address.district_id,
         "service_type_id":2,
         "to_district_id":customer.address.district_id,
-        "to_ward_code":str(customer.address.ward_id),
+        "to_ward_code":customer.address.ward_id,
         "height":max_lwh['max_height'],
         "length":max_lwh['max_length'],
         "weight":max_lwh['total_weight'],
@@ -190,3 +204,28 @@ def update_shipping_code(order_id):
         order.save()
         return True
     return False
+
+@transaction.atomic
+def make_order_from_list_cart(list_cart_id, user_id, data):
+    carts = CartDetail.objects.filter(customer__id=user_id, id__in=list_cart_id)
+    user = User.objects.get(pk=user_id)
+    result = []
+    if carts:
+        stores = User.objects.filter(product__option__cartdetail__in=carts).distinct().exclude(id = user_id)
+        for store in stores:
+            cart_order = carts.filter(product_option__base_product__owner=store)
+            if cart_order:
+                serializer = OrderSerializer(data=data)
+                if serializer.is_valid(raise_exception=True):   
+                    order = serializer.save(store=store, customer=user)
+                    order.save()
+                    for c in cart_order:
+                        _ = OrderDetail.objects.create(quantity=c.quantity, product_option= c.product_option, unit_price= c.product_option.price, order=order, cart_id=c)
+                    shipping_data = json.loads(calculate_shipping_fee(order_id=order.id))
+                    if shipping_data.get('code') == 200:
+                        shipping_fee = shipping_data.get('data').get('total')
+                        order.total_shipping_fee = shipping_fee
+                        order.save()
+                        order.refresh_from_db()
+                    result.append(order)
+    return result

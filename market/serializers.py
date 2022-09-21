@@ -1,8 +1,10 @@
-from rest_framework.serializers import  ModelSerializer, ReadOnlyField, ListField, IntegerField, SerializerMethodField, ImageField
+from dataclasses import field
+from rest_framework.serializers import  ModelSerializer, ReadOnlyField, ListField, IntegerField, SerializerMethodField, ImageField, CharField, DictField
 from .models import *
 import cloudinary
 import cloudinary.uploader
 from django.db.models import Sum, F
+import decimal
 
 
 class AddressSerializer(ModelSerializer):
@@ -164,6 +166,26 @@ class OrderDetailSerializer(ModelSerializer):
         model = OrderDetail
         fields = "__all__"
 
+class ListOrderSerializer(ModelSerializer):
+    store = UserLessInformationSerializer(read_only=True)
+    customer = UserLessInformationSerializer(read_only=True)
+    cost = SerializerMethodField(method_name='calculate_temp_price', read_only=True)
+    class Meta:
+        model = Order
+        fields = "__all__"
+        extra_kwargs = {
+            'status': {'read_only':'true'},
+            'can_destroy': {'read_only': 'true'}
+        }
+
+    def calculate_temp_price(self, obj):
+        try:
+            bill = obj.bill
+            return bill.value
+        except:
+            order_details = OrderDetail.objects.filter(order=obj)
+            return order_details.aggregate(total_price = Sum(F('quantity') * F('unit_price')))['total_price']
+
 class OrderSerializer(ModelSerializer):
     list_cart = ListField(
         child = IntegerField(),
@@ -181,6 +203,7 @@ class OrderSerializer(ModelSerializer):
             'can_destroy': {'read_only': 'true'},
             'store' : {'read_only': 'true'},
             'customer': {'read_only': 'true'},
+            'shipping': {'read_only': 'true'}
         }
     
     def create(self, validated_data):
@@ -188,8 +211,41 @@ class OrderSerializer(ModelSerializer):
         return super().create(validated_data)
 
     def calculate_temp_price(self, obj):
-        order_details = OrderDetail.objects.filter(order=obj)
-        return order_details.aggregate(total_price = Sum(F('quantity') * F('unit_price')))['total_price']
+        try:
+            bill = obj.bill
+            return bill.value
+        except:
+            order_details = OrderDetail.objects.filter(order=obj)
+            return order_details.aggregate(total_price = Sum(F('quantity') * F('unit_price')))['total_price']
+
+class VoucherSerializer(ModelSerializer):
+
+    class Meta:
+        model = Voucher
+        fields = "__all__"
+
+class CheckoutOrderSerializer(ModelSerializer):
+    list_voucher = DictField(
+        child = CharField(),
+        write_only=True,
+        required=False
+    )
+    class Meta:
+        model = Order
+        exclude = ['customer']
+        extra_kwargs = {
+            'order_date' : {'read_only': 'true'},
+            'completed_date' : {'read_only': 'true'},
+            'shipping_code' : {'read_only': 'true'},
+            'total_shipping_fee' : {'read_only': 'true'},
+            'note' : {'read_only': 'true'},
+            'status': {'read_only':'true'},
+            'can_destroy': {'read_only': 'true'},
+            'store' : {'read_only': 'true'},
+            'voucher_apply': {'read_only': 'true'},
+            'shipping': {'read_only': 'true'}
+        }
+
 
 class BillSerializer(ModelSerializer):
 
@@ -250,8 +306,3 @@ class AddCartSerializer(ModelSerializer):
             'product_option': {'read_only': 'true'},
         }
 
-class VoucherSerializer(ModelSerializer):
-
-    class Meta:
-        model = Voucher
-        fields = "__all__"
