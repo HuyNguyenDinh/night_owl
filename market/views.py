@@ -1,5 +1,3 @@
-from asyncio.base_subprocess import ReadSubprocessPipeProto
-from urllib import request
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, JSONParser
 from rest_framework.decorators import action
@@ -7,7 +5,7 @@ from rest_framework import status, generics, viewsets, permissions
 from .models import *
 from .serializers import *
 from .perms import *
-from .paginators import *
+from .paginations import *
 from django.db.models import Q
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
@@ -67,7 +65,7 @@ class CartDetailViewSet(viewsets.ViewSet, generics.ListAPIView, generics.Retriev
 
     @action(methods=['get'], detail=False, url_path='get-cart-groupby-owner')
     def get_cart_groupby_owner(self, request):
-        cart = CartDetail.objects.filter(customer__id = request.user.id).all().values_list('id')
+        cart = CartDetail.objects.filter(customer__id=request.user.id).all().values_list('id')
         owner = User.objects.filter(product__option__cartdetail__id__in=cart).distinct()
         carts = CartInStoreSerializer(owner, context={'request': request}, many=True)
         if carts:
@@ -162,7 +160,8 @@ class ProductViewSet(viewsets.ModelViewSet):
                         try:
                             _ = Picture.objects.create(image=img, product_option=obj)
                         except:
-                            return Response({'message': "added option to product but cannot add picture to options"}, status=status.HTTP_400_BAD_REQUEST)
+                            return Response({'message': "added option to product but cannot add picture to options"},
+                                            status=status.HTTP_400_BAD_REQUEST)
                 return Response(serializer.data, status = status.HTTP_201_CREATED)
             return Response({'message': "cannot add options to product"}, status=status.HTTP_400_BAD_REQUEST)
         except:
@@ -276,19 +275,58 @@ class OrderViewSet(viewsets.ModelViewSet):
             return Response({'message': 'can not checkout the orders'}, status=status.HTTP_406_NOT_ACCEPTABLE)
         return Response({'message': 'can not found the orders uncheckout'}, status=status.HTTP_404_NOT_FOUND)
 
+    @action(methods=['get'], detail=True, url_path='accept_order')
+    def accept_order(self, request, pk):
+        order = Order.objects.get(pk=pk, status=1)
+        if order:
+            pass
+
 class OrderDetailViewSet(viewsets.ModelViewSet):
     serializer_class = OrderDetailSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         status = self.request.query_params.get('status')
-        ordd = OrderDetail.objects.filter(Q(order__customer__id=self.request.user.id) | Q(order__store__id=self.request.user.id))
+        ordd = OrderDetail.objects.filter(Q(order__customer__id=self.request.user.id) |
+                                          Q(order__store__id=self.request.user.id))
         if status:
             ordd.filter(order__status=status)
         return ordd
 
-class BillViewSet(viewsets.ModelViewSet):
+class BillViewSet(viewsets.ViewSet, generics.ListAPIView):
     queryset = Bill.objects.all()
     serializer_class = BillSerializer
     pagination_class = ProductPagination
     permission_classes = [permissions.IsAuthenticated]
+
+class VoucherViewSet(viewsets.ModelViewSet):
+    queryset = Voucher.objects.all()
+    serializer_class = VoucherSerializer
+    pagination_class = BasePagination
+
+    def create(self, request, *args, **kwargs):
+        can_add = False
+        # Check night owl staff
+        if request.user and request.user.is_staff:
+            can_add = True
+        else:
+            products = Product.objects.filter(owner=request.user.id,
+                                   id__in=[o for o in request.data.get('products')])
+            # Check product owner in list product
+            if list(products.values_list('id', flat=True)) == request.data.get('products'):
+                can_add = True
+        if can_add:
+            serializer = self.get_serializer(data=request.data)
+            if serializer.is_valid(raise_exception=True):
+                serializer.save(creator=request.user)
+                headers = self.get_success_headers(serializer.data)
+                return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+            return Response({'message': 'can not create voucher'}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'message': 'can not add voucher to product that you are not the owner'},
+                        status=status.HTTP_403_FORBIDDEN)
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [permissions.AllowAny(), ]
+        elif self.action == 'create':
+            return [BusinessPermission(), ]
+        return [BusinessOwnerPermission(), ]

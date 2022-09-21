@@ -5,7 +5,6 @@ from django.db import transaction
 import requests
 import json
 from market.serializers import *
-import decimal
 
 ############ Order #############
 # Checkout Order: Decrease unit in stock of option in order details ->
@@ -40,11 +39,10 @@ def calculate_order_value_with_voucher(voucher, value):
 
 def calculate_value(order_id, voucher_id=None):
     order = Order.objects.get(pk=order_id)
-    print(order.id)
     value = 0
     if order:
-        value = order.orderdetail_set.aggregate(total_price = Sum(F('quantity') * F('unit_price')))['total_price']
-        print(type(value))
+        value = order.orderdetail_set.aggregate(total_price=Sum(F('quantity') * F('unit_price')))['total_price']
+        value = value + order.total_shipping_fee
         if voucher_id:
             voucher = Voucher.objects.get(pk=voucher_id)
             if voucher:
@@ -57,11 +55,8 @@ def calculate_value(order_id, voucher_id=None):
 @transaction.atomic
 def decrease_option_unit_instock(orderdetail_id):
     odd = OrderDetail.objects.get(pk=orderdetail_id)
-    print(odd.id)
     option = Option.objects.select_for_update().get(orderdetail__id=orderdetail_id)
-    print(option.id)
     option.unit_in_stock = option.unit_in_stock - odd.quantity
-    print(option.unit_in_stock)
     option.save()
     option.refresh_from_db()
     return option
@@ -136,30 +131,22 @@ def create_shipping_order(order_id):
 @transaction.atomic
 def checkout_order(order_id, voucher_code=None):
     order = Order.objects.select_for_update().get(pk=order_id)
-    print(order.id)
     for i in order.orderdetail_set.all():
-        print("Order detail", i.id)
         decrease_option_unit_instock(i.id)
 
     # update status
     order.status = 1
     order.save()
-    print(order.id)
     # calculate value to create bill
     value = 0
     voucher = None
     if voucher_code and voucher_code.get(order.id):
-        print('voucher id got')
         voucher = Voucher.objects.filter(code = voucher_code)
     if voucher:
-        print('voucher got')
-        value=calculate_value(order_id=order.id, voucher_id=voucher[0].id)
+        value = calculate_value(order_id=order.id, voucher_id=voucher[0].id)
     else:
-        print('no voucher')
-        value=calculate_value(order_id=order.id)
-    print('calculated value')
+        value = calculate_value(order_id=order.id)
     _ = Bill.objects.create(value=value, order_payed=order, customer=order.customer)
-    print('created bill')
     order.refresh_from_db()
     return order
 

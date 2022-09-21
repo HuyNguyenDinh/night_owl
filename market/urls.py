@@ -1,5 +1,3 @@
-from posixpath import basename
-from django.db import router
 from django.urls import path, re_path, include
 from rest_framework.routers import DefaultRouter
 from .admin import *
@@ -15,6 +13,7 @@ router.register("order-detail", views.OrderDetailViewSet, basename="order-detail
 router.register("bills", views.BillViewSet, basename="bills")
 router.register("cart", views.CartDetailViewSet, basename="cart")
 router.register("address", views.AddressViewSet, basename="user_address")
+router.register("voucher", views.VoucherViewSet, basename="voucher")
 
 urlpatterns = [
     path('', include(router.urls)),

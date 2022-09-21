@@ -14,7 +14,7 @@ class AddressSerializer(ModelSerializer):
         exclude = ["creator"]
 
 class UserSerializer(ModelSerializer):
-    address = AddressSerializer(required=False)
+    address = AddressSerializer(required=False, read_only=True)
     class Meta:
         model = User
         fields = ['id', 'first_name', 'last_name', 'email', 'phone_number', 'is_staff', 'is_business', 'password', 'is_active', 'verified', 'provider', 'avatar', 'address']
@@ -223,6 +223,10 @@ class VoucherSerializer(ModelSerializer):
     class Meta:
         model = Voucher
         fields = "__all__"
+        extra_kwargs = {
+            'creator': {'read_only': 'true'}
+        }
+
 
 class CheckoutOrderSerializer(ModelSerializer):
     list_voucher = DictField(
@@ -243,7 +247,6 @@ class CheckoutOrderSerializer(ModelSerializer):
             'can_destroy': {'read_only': 'true'},
             'store' : {'read_only': 'true'},
             'voucher_apply': {'read_only': 'true'},
-            'shipping': {'read_only': 'true'}
         }
 
 
