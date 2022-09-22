@@ -62,7 +62,7 @@ def calculate_value(order_id, voucher_id=None):
 def decrease_option_unit_instock(orderdetail_id):
     odd = OrderDetail.objects.get(pk=orderdetail_id)
     option = Option.objects.select_for_update().get(orderdetail__id=orderdetail_id)
-    option.unit_in_stock = option.unit_in_stock - odd.quantity
+    option.unit_in_stock = F('unit_in_stock') - odd.quantity
     option.save()
     option.refresh_from_db()
     return option
@@ -77,6 +77,28 @@ def calculate_max_lwh(order_id):
         total_weight = Sum(F('product_option__weight')))
     return max_lwh
 
+# Get GHN Services
+def get_shipping_service(order_id):
+    order = Order.objects.get(pk=order_id)
+    seller = order.store
+    customer = order.customer
+    header = {
+        'Content-Type': 'application/json',
+        'Token': '8ae8d191-18b9-11ed-b136-06951b6b7f89'
+    }
+    data = {
+        "shop_id": 117552,
+        "from_district": seller.address.district_id,
+        "to_district": customer.address.district_id
+    }
+    r = json.dumps(data)
+    loaded_r = json.loads(r)
+    print(loaded_r)
+    url = 'https://dev-online-gateway.ghn.vn/shiip/public-api/v2/shipping-order/available-services'
+    x = requests.post(url=url, json=loaded_r, headers=header)
+    return x.text
+
+
 # POST request to create shipping order
 def create_shipping_order(order_id):
     order = Order.objects.get(pk=order_id)
@@ -84,6 +106,12 @@ def create_shipping_order(order_id):
     customer = order.customer
     max_lwh = calculate_max_lwh(order_id=order.id)
     value = order.bill.value
+    service_type_id = 2
+    services = json.loads(get_shipping_service(order.id))
+    if services.get('code') == 200:
+        service_data = services.get('data')
+        service_type_id = service_data[0].get('service_type_id')
+
     items = []
     for i in order.orderdetail_set.all():
         item = {
@@ -102,7 +130,7 @@ def create_shipping_order(order_id):
             "required_note": "KHONGCHOXEMHANG",
             "return_phone": seller.phone_number,
             "return_address": seller.address.full_address,
-            "return_district_id": None,
+            "return_district_id": seller.address.district_id,
             "return_ward_code": seller.address.ward_id,
             "client_order_code": str(order.id),
             "to_name": customer.last_name + " " + customer.first_name,
@@ -116,20 +144,21 @@ def create_shipping_order(order_id):
             "length": max_lwh.get('max_length'),
             "width": max_lwh.get('max_width'),
             "height": max_lwh.get('max_height'),
-            "deliver_station_id": None,
             "insurance_value": int(value),
-            "service_type_id":2,
+            "service_type_id": service_type_id,
             "coupon": None,
             "items": items
         }
     r = json.dumps(data)
     loaded_r = json.loads(r)
+    print(loaded_r)
     header = {
         'Content-Type': 'application/json',
         'ShopId': '117552',
         'Token': '8ae8d191-18b9-11ed-b136-06951b6b7f89'
     }
     url = 'https://dev-online-gateway.ghn.vn/shiip/public-api/v2/shipping-order/create'
+
 
     x = requests.post(url=url, json=loaded_r, headers=header)
     return x.text
@@ -195,8 +224,10 @@ def update_shipping_code(order_id):
     shipping_order = json.loads(create_shipping_order(order_id=order.id))
     if shipping_order.get('code') == 200:
         data = shipping_order.get('data')
+        order.can_destroy = False
         order.shipping_code = data.get('order_code')
         order.total_shipping_fee = data.get('total_fee')
+        order.completed_date = shipping_order.get('expected_delivery_time')
         order.save()
         return True
     return False

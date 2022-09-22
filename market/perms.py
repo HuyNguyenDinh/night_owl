@@ -19,6 +19,11 @@ class BusinessOwnerPermission(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
         return obj.owner.id == request.user.id
 
+class StoreOwnerPermission(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return bool(request.user and request.user.is_authenticated and request.user.is_business)
+    def has_object_permission(self, request, view, obj):
+        return obj.store.id == request.user.id
 class IsProductOptionOwner(permissions.BasePermission):
     """
     Custom permission to only allow owners of an object to edit it.

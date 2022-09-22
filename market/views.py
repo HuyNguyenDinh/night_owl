@@ -212,11 +212,16 @@ class OptionViewSet(viewsets.ViewSet, generics.UpdateAPIView, generics.DestroyAP
 
 class OrderViewSet(viewsets.ModelViewSet):
     pagination_class = OrderPagination
-    permission_classes = [permissions.IsAuthenticated,]
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
     filterset_fields = ['status', 'id', 'can_destroy', 'completed_date', 'order_date']
     ordering_fields = ['completed_date', 'order_date', 'bill__value']
 
+    def get_permissions(self):
+        if self.action == "create":
+            return [BusinessPermission(), ]
+        elif self.action in ["accept_order", "delete"]:
+            return [StoreOwnerPermission(), ]
+        return [permissions.IsAuthenticated,]
     def get_serializer_class(self):
         if self.action in ["list"]:
             return ListOrderSerializer
@@ -285,11 +290,20 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     @action(methods=['get'], detail=True, url_path='accept_order')
     def accept_order(self, request, pk):
-        order = Order.objects.select_for_update().get(pk=pk, status=1)
+        order = Order.objects.get(pk=pk)
         if order:
-            order.can_destroy = False
-
+            try:
+                self.check_object_permissions(request, order)
+                if order.status != 1:
+                    return Response({'message': 'order not approving'}, status=status.HTTP_406_NOT_ACCEPTABLE)
+                if update_shipping_code(order_id=order.id):
+                    order.refresh_from_db()
+                    return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
+                return Response({'message': 'failed to create shipping order'}, status=status.HTTP_400_BAD_REQUEST)
+            except:
+                return Response({'message': 'you do not have permission'}, status=status.HTTP_403_FORBIDDEN)
         return Response({'message': 'order not found'}, status=status.HTTP_404_NOT_FOUND)
+
 class OrderDetailViewSet(viewsets.ModelViewSet):
     serializer_class = OrderDetailSerializer
     permission_classes = [permissions.IsAuthenticated]
