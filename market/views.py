@@ -221,7 +221,8 @@ class OrderViewSet(viewsets.ModelViewSet):
             return [BusinessPermission(), ]
         elif self.action in ["accept_order", "delete"]:
             return [StoreOwnerPermission(), ]
-        return [permissions.IsAuthenticated,]
+        return [permissions.IsAuthenticated() ,]
+        
     def get_serializer_class(self):
         if self.action in ["list"]:
             return ListOrderSerializer
