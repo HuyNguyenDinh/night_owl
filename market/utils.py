@@ -5,6 +5,7 @@ from django.db import transaction
 import requests
 import json
 from market.serializers import *
+import decimal
 
 ############ Order #############
 # Checkout Order: Decrease unit in stock of option in order details ->
@@ -14,14 +15,17 @@ from market.serializers import *
 # Check voucher available at now
 def check_now_in_datetime_range(start_date, end_date):
     now = timezone.now()
-    return now >= start_date and now <= end_date
+    if end_date is not None:
+        return now >= start_date and now <= end_date
+    else:
+        return now >= start_date
 
 # Check voucher
 def check_voucher_available(option_id, voucher_id):
     voucher = Voucher.objects.get(pk=voucher_id)
     option = Option.objects.get(pk=option_id)
     if option and voucher:
-        if option.base_product.id in voucher.products.values_list('id', flat=True):
+        if option.base_product.id in list(set(voucher.products.values_list('id', flat=True))):
             return check_now_in_datetime_range(voucher.start_date, voucher.end_date)
     return False
 
@@ -34,7 +38,7 @@ def check_discount_in_order(order_details, voucher_id):
 
 def calculate_order_value_with_voucher(voucher, value):
     if voucher.is_percentage:
-        return value * (100-voucher.discount)
+        return value * (100-voucher.discount) / 100
     return value - voucher.discount
 
 def calculate_value(order_id, voucher_id=None):
@@ -42,13 +46,15 @@ def calculate_value(order_id, voucher_id=None):
     value = 0
     if order:
         value = order.orderdetail_set.aggregate(total_price=Sum(F('quantity') * F('unit_price')))['total_price']
-        value = value + order.total_shipping_fee
         if voucher_id:
             voucher = Voucher.objects.get(pk=voucher_id)
             if voucher:
                 odd_exclude = check_discount_in_order(order.orderdetail_set.all(), voucher.id)
-                if odd_exclude and check_voucher_available(odd_exclude.id, voucher.id):
-                    value = calculate_order_value_with_voucher(voucher, value)
+                if odd_exclude:
+                    order_detail = OrderDetail.objects.get(pk=odd_exclude)
+                    if order_detail:
+                        value = calculate_order_value_with_voucher(voucher, value)
+        value = value + order.total_shipping_fee
     return value
 
 # decrease the unit in stock of option when checkout the order
@@ -140,13 +146,16 @@ def checkout_order(order_id, voucher_code=None):
     # calculate value to create bill
     value = 0
     voucher = None
-    if voucher_code and voucher_code.get(order.id):
-        voucher = Voucher.objects.filter(code = voucher_code)
-    if voucher:
+    if voucher_code is not None:
+        voucher = Voucher.objects.filter(code=voucher_code)
+    if voucher is not None and voucher.exists():
         value = calculate_value(order_id=order.id, voucher_id=voucher[0].id)
+        if check_discount_in_order(order.orderdetail_set.all(), voucher[0].id) is not None:
+            order.voucher_apply = voucher[0]
+            order.save()
     else:
         value = calculate_value(order_id=order.id)
-    _ = Bill.objects.create(value=value, order_payed=order, customer=order.customer)
+    order.bill = Bill.objects.create(value=value, order_payed=order, customer=order.customer)
     order.refresh_from_db()
     return order
 

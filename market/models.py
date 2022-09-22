@@ -103,7 +103,7 @@ class Order(models.Model):
     note = models.TextField(null=True, blank=True)
     customer = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='customer_order')
     store = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='store_order')
-    voucher_apply = models.OneToOneField('Voucher', on_delete=models.SET_NULL, null=True)
+    voucher_apply = models.ForeignKey('Voucher', on_delete=models.SET_NULL, null=True)
 
     STATUS_CHOICES = (
         (0, 'UnCheckout'),

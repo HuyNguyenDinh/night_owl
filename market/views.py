@@ -139,7 +139,6 @@ class ProductViewSet(viewsets.ModelViewSet):
         try:
             self.check_object_permissions(request, pd)
             serializer = CreateRatingSerializer(data=request.data)
-            print(request.data)
             if serializer.is_valid():
                 serializer.save(creator=request.user, product=pd)
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -233,7 +232,8 @@ class OrderViewSet(viewsets.ModelViewSet):
                 orders =  orders.filter(customer = self.request.user.id)
             elif state == '1':
                 orders =  orders.filter(store = self.request.user.id)
-        return orders 
+        return orders
+
 
     def create(self, request, *args, **kwargs):
         list_cart = request.data.get('list_cart')
@@ -256,31 +256,40 @@ class OrderViewSet(viewsets.ModelViewSet):
     def checkout(self, request):
         order = Order.objects.filter(customer = request.user.id, status=0)
         if order:
-            odd_id_list = order.values_list('orderdetail__cart_id__id', flat=True)
             voucher_code = request.data.get('list_voucher')
+            result = []
             success = False
             try:
-                for o in order:
-                    result = checkout_order(order_id=o.id, voucher_code=voucher_code)
-                    if result is None:
-                        raise Exception
-                success = True
+                with transaction.atomic():
+                    for o in order:
+                        voucher_code_order = None
+                        if voucher_code is not None:
+                            voucher_code_order = voucher_code.get(str(o.id))
+                        if voucher_code_order is not None:
+                            m = checkout_order(order_id=o.id, voucher_code=voucher_code_order)
+                        else:
+                            m = checkout_order(order_id=o.id)
+                        if m is None:
+                            raise Exception
+                        result.append(m)
+                    success = True
             except:
                 return Response({'message':'some product options has out of stock'}, status=status.HTTP_400_BAD_REQUEST)
             if success:
-                cart = CartDetail.objects.filter(orderdetail__id__in=odd_id_list)
-                if cart.count() > 0:
-                    cart.delete()
-                return Response(OrderSerializer(result).data, status=status.HTTP_202_ACCEPTED)
+                for i in result:
+                    odds = i.orderdetail_set.values_list('cart_id__id', flat=True)
+                    CartDetail.objects.filter(id__in=list(set(odds))).delete()
+                return Response(OrderSerializer(result, many=True).data, status=status.HTTP_202_ACCEPTED)
             return Response({'message': 'can not checkout the orders'}, status=status.HTTP_406_NOT_ACCEPTABLE)
         return Response({'message': 'can not found the orders uncheckout'}, status=status.HTTP_404_NOT_FOUND)
 
     @action(methods=['get'], detail=True, url_path='accept_order')
     def accept_order(self, request, pk):
-        order = Order.objects.get(pk=pk, status=1)
+        order = Order.objects.select_for_update().get(pk=pk, status=1)
         if order:
-            pass
+            order.can_destroy = False
 
+        return Response({'message': 'order not found'}, status=status.HTTP_404_NOT_FOUND)
 class OrderDetailViewSet(viewsets.ModelViewSet):
     serializer_class = OrderDetailSerializer
     permission_classes = [permissions.IsAuthenticated]
