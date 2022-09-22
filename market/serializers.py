@@ -203,7 +203,7 @@ class OrderSerializer(ModelSerializer):
             'can_destroy': {'read_only': 'true'},
             'store' : {'read_only': 'true'},
             'customer': {'read_only': 'true'},
-            'shipping': {'read_only': 'true'}
+            'payment_type': {'read_only': 'true'}
         }
     
     def create(self, validated_data):

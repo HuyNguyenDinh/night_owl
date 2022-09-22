@@ -118,7 +118,7 @@ class Order(models.Model):
         (0, 'COD'),
         (1, 'OnlinePayment')
     )
-    shipping = models.IntegerField(choices=SHIPPING_CHOICES, default=0)
+    payment_type = models.IntegerField(choices=SHIPPING_CHOICES, default=0)
 
 
 class Option(models.Model):
