@@ -111,7 +111,6 @@ def create_shipping_order(order_id):
     if services.get('code') == 200:
         service_data = services.get('data')
         service_type_id = service_data[0].get('service_type_id')
-
     items = []
     for i in order.orderdetail_set.all():
         item = {
@@ -136,7 +135,7 @@ def create_shipping_order(order_id):
             "to_name": customer.last_name + " " + customer.first_name,
             "to_phone": customer.phone_number,
             "to_address": customer.address.full_address,
-            "to_ward_code": customer.address.ward_id,
+            "to_ward_code": str(customer.address.ward_id),
             "to_district_id": customer.address.district_id,
             "cod_amount": int(value),
             "content": order.note,
@@ -228,6 +227,7 @@ def update_shipping_code(order_id):
         order.shipping_code = data.get('order_code')
         order.total_shipping_fee = data.get('total_fee')
         order.completed_date = shipping_order.get('expected_delivery_time')
+        order.status = 2
         order.save()
         return True
     return False
