@@ -217,9 +217,7 @@ class OrderViewSet(viewsets.ModelViewSet):
     ordering_fields = ['completed_date', 'order_date', 'bill__value']
 
     def get_permissions(self):
-        if self.action == "create":
-            return [BusinessPermission(), ]
-        elif self.action in ["accept_order", "delete"]:
+        if self.action in ["accept_order", "delete"]:
             return [StoreOwnerPermission(), ]
         return [permissions.IsAuthenticated() ,]
         
@@ -242,6 +240,10 @@ class OrderViewSet(viewsets.ModelViewSet):
 
 
     def create(self, request, *args, **kwargs):
+        address = Address.objects.filter(creator=request.user)
+        if not address.exists():
+            return Response({'message': 'you need to add the address before make order'}, status=status.HTTP_400_BAD_REQUEST)
+        print(request.user.address)
         list_cart = request.data.get('list_cart')
         if list_cart:
             result = make_order_from_list_cart(list_cart_id=list_cart, user_id=request.user.id, data=request.data)
@@ -291,19 +293,21 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     @action(methods=['get'], detail=True, url_path='accept_order')
     def accept_order(self, request, pk):
-        order = Order.objects.get(pk=pk)
-        if order:
-            try:
-                self.check_object_permissions(request, order)
-                if order.status != 1:
-                    return Response({'message': 'order not approving'}, status=status.HTTP_406_NOT_ACCEPTABLE)
-                if update_shipping_code(order_id=order.id):
-                    order.refresh_from_db()
-                    return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
-                return Response({'message': 'failed to create shipping order'}, status=status.HTTP_400_BAD_REQUEST)
-            except:
-                return Response({'message': 'you do not have permission'}, status=status.HTTP_403_FORBIDDEN)
-        return Response({'message': 'order not found'}, status=status.HTTP_404_NOT_FOUND)
+        try:
+            order = Order.objects.get(pk=pk)
+        except Order.DoesNotExist:
+            return Response({'message': 'order not found'}, status=status.HTTP_404_NOT_FOUND)
+        try:
+            self.check_object_permissions(request, order)
+            if order.status != 1:
+                return Response({'message': 'order not approving'}, status=status.HTTP_406_NOT_ACCEPTABLE)
+            if update_shipping_code(order_id=order.id):
+                order.refresh_from_db()
+                return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
+            return Response({'message': 'failed to create shipping order'}, status=status.HTTP_400_BAD_REQUEST)
+        except:
+            return Response({'message': 'you do not have permission'}, status=status.HTTP_403_FORBIDDEN)
+
 
 class OrderDetailViewSet(viewsets.ModelViewSet):
     serializer_class = OrderDetailSerializer

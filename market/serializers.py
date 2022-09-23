@@ -247,6 +247,7 @@ class CheckoutOrderSerializer(ModelSerializer):
             'can_destroy': {'read_only': 'true'},
             'store' : {'read_only': 'true'},
             'voucher_apply': {'read_only': 'true'},
+            'payment_type': {'read_only': 'true'}
         }
 
 
