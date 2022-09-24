@@ -154,9 +154,12 @@ class Bill(models.Model):
     customer = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
 
 class CartDetail(models.Model):
-    quantity = models.PositiveIntegerField(default=1)
+    quantity = models.PositiveIntegerField(validators=[MinValueValidator(1)])
     customer = models.ForeignKey(User, on_delete=models.CASCADE)
     product_option = models.ForeignKey(Option, on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = [['customer', 'product_option']]
 
 class Rating(models.Model):
     rate = models.PositiveIntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])

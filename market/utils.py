@@ -130,7 +130,7 @@ def create_shipping_order(order_id):
             "return_phone": seller.phone_number,
             "return_address": seller.address.full_address,
             "return_district_id": seller.address.district_id,
-            "return_ward_code": seller.address.ward_id,
+            "return_ward_code": str(seller.address.ward_id),
             "client_order_code": str(order.id),
             "to_name": customer.last_name + " " + customer.first_name,
             "to_phone": customer.phone_number,

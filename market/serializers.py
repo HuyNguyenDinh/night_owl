@@ -6,6 +6,8 @@ import cloudinary
 import cloudinary.uploader
 from django.db.models import Sum, F
 import decimal
+from drf_extra_fields.fields import Base64ImageField
+from django.db import transaction
 
 
 class AddressSerializer(ModelSerializer):
@@ -57,7 +59,7 @@ class OptionPictureSerializer(ModelSerializer):
 class CreateOptionSerializer(ModelSerializer):
     picture_set = OptionPictureSerializer(many=True, read_only=True)
     uploaded_images = ListField(
-        child = ImageField(use_url=True, allow_empty_file=False),
+        child = Base64ImageField(),
         write_only = True,
         required=True
     )
@@ -277,11 +279,8 @@ class CartSerializer(ModelSerializer):
         model = CartDetail
         fields = "__all__"
         extra_kwargs = {
-            'customer': {'read_only': 'true'},
+            'customer': {'read_only': True},
         }
-
-    def to_representation(self, instance):
-        return super().to_representation(instance)
 
 class CartInStoreSerializer(ModelSerializer):
     carts = SerializerMethodField('get_carts_user', read_only=True)

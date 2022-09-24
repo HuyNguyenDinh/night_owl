@@ -200,9 +200,19 @@ class OptionViewSet(viewsets.ViewSet, generics.UpdateAPIView, generics.DestroyAP
     def add_to_cart(self, request, pk):
         op = Option.objects.get(pk=pk)
         cart = CartSerializer(data=request.data)
-        if cart.is_valid():
-            cart.save(customer=request.user, product_option=op)
-            return Response(cart.data, status=status.HTTP_201_CREATED)
+        if cart.is_valid(raise_exception=True):
+            try:
+                cart.save(customer=request.user, product_option=op)
+            except:
+                quantity = cart.validated_data.get('quantity')
+                with transaction.atomic():
+                    cart_exist = CartDetail.objects.select_for_update().get(customer=request.user, product_option=op)
+                    cart_exist.quantity = F('quantity') + quantity
+                    cart_exist.save()
+                cart_exist = CartDetail.objects.get(customer=request.user, product_option=op)
+                return Response(CartSerializer(cart_exist).data)
+            else:
+                return Response(cart.data)
         return Response({'message': 'cannot add product to your cart'}, status=status.HTTP_400_BAD_REQUEST)
         
 

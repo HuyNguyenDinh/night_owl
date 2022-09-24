@@ -64,7 +64,6 @@ def send_order(order_id):
     }
     data = json.dumps(data)
 
-
     clen = len(data)
     response = requests.post(endpoint, data=data,
                              headers={'Content-Type': 'application/json', 'Content-Length': str(clen)})
