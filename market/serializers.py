@@ -1,4 +1,5 @@
 from dataclasses import field
+from multiprocessing import context
 from rest_framework.serializers import  ModelSerializer, ReadOnlyField, ListField, IntegerField, SerializerMethodField, ImageField, CharField, DictField
 from .models import *
 import cloudinary
@@ -48,27 +49,30 @@ class OptionPictureSerializer(ModelSerializer):
         model = Picture
         fields = "__all__"
         extra_kwargs = {
-            'product_option': {'read_only': 'true'}
+            'product_option': {'read_only': 'true'},
+            'pk': {'read_only': 'true'}
         }
 
 # Create multiple options
 class CreateOptionSerializer(ModelSerializer):
-    image_set = ListField(
-        child = ImageField(),
-        write_only=True
-    )
     picture_set = OptionPictureSerializer(many=True, read_only=True)
+    uploaded_images = ListField(
+        child = ImageField(use_url=True, allow_empty_file=False),
+        write_only = True,
+        required=True
+    )
     class Meta:
         model = Option
-        fields = "__all__"
+        fields = ["unit", "unit_in_stock", "price", "weight", "height", "width", "length", "base_product", "picture_set", "uploaded_images"]
         extra_kwargs = {
             'base_product': {'read_only': 'true'},
         }
     
     def create(self, validated_data):
-        pictures = validated_data.pop('image_set')
-        option = Option(**validated_data)
-        option.save()
+        uploaded_data = validated_data.pop('uploaded_images')
+        option = Option.objects.create(**validated_data)
+        for uploaded_item in uploaded_data:
+            new_product_image = Picture.objects.create(product_option = option, image = uploaded_item)
         return option
 
 class OptionSerializer(ModelSerializer):

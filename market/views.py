@@ -138,33 +138,29 @@ class ProductViewSet(viewsets.ModelViewSet):
         pd = Product.objects.get(pk=pk)
         try:
             self.check_object_permissions(request, pd)
+        except:
+            return Response({'message': 'please login to comment'}, status=status.HTTP_403_FORBIDDEN)
+        else:
             serializer = CreateRatingSerializer(data=request.data)
             if serializer.is_valid():
                 serializer.save(creator=request.user, product=pd)
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
             return Response({'message': 'not valid comment'}, status=status.HTTP_400_BAD_REQUEST)
-        except:
-            return Response({'message': 'please login to comment'}, status=status.HTTP_403_FORBIDDEN)
     
     @action(methods=['post'], detail=True, url_path='add-option')
     def add_option(self, request, pk):
         pd = Product.objects.get(pk=pk)
         try:
             self.check_object_permissions(request, pd)
-            serializer = CreateOptionSerializer(data=request.data)
-            if serializer.is_valid():
-                obj = serializer.save(base_product=pd)
-                if request.data.getlist('image_set'):
-                    for img in request.data.getlist('image_set'):
-                        try:
-                            _ = Picture.objects.create(image=img, product_option=obj)
-                        except:
-                            return Response({'message': "added option to product but cannot add picture to options"},
-                                            status=status.HTTP_400_BAD_REQUEST)
-                return Response(serializer.data, status = status.HTTP_201_CREATED)
-            return Response({'message': "cannot add options to product"}, status=status.HTTP_400_BAD_REQUEST)
         except:
             return Response({'message': 'you do not have permission'}, status=status.HTTP_403_FORBIDDEN)
+        else:
+            serializer = CreateOptionSerializer(data=request.data)
+            if serializer.is_valid(raise_exception=True):
+                serializer.save(base_product=pd)
+                return Response(serializer.data, status = status.HTTP_201_CREATED)
+            return Response({'message': "cannot add options to product"}, status=status.HTTP_400_BAD_REQUEST)
+        
 
     @action(methods=['get'], detail=True, url_path='options')
     def get_options(self, request, pk):
