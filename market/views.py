@@ -305,14 +305,15 @@ class OrderViewSet(viewsets.ModelViewSet):
             return Response({'message': 'order not found'}, status=status.HTTP_404_NOT_FOUND)
         try:
             self.check_object_permissions(request, order)
-            if order.status != 1:
-                return Response({'message': 'order not approving'}, status=status.HTTP_406_NOT_ACCEPTABLE)
-            if update_shipping_code(order_id=order.id):
-                order.refresh_from_db()
-                return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
-            return Response({'message': 'failed to create shipping order'}, status=status.HTTP_400_BAD_REQUEST)
         except:
             return Response({'message': 'you do not have permission'}, status=status.HTTP_403_FORBIDDEN)
+        if order.status != 1:
+            return Response({'message': 'order not approving'}, status=status.HTTP_406_NOT_ACCEPTABLE)
+        if update_shipping_code(order_id=order.id):
+            order.refresh_from_db()
+            return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
+        return Response({'message': 'failed to create shipping order'}, status=status.HTTP_400_BAD_REQUEST)
+    
 
 
 class OrderDetailViewSet(viewsets.ModelViewSet):

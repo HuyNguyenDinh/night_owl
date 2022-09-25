@@ -1,6 +1,6 @@
 from dataclasses import field
 from multiprocessing import context
-from rest_framework.serializers import  ModelSerializer, ReadOnlyField, ListField, IntegerField, SerializerMethodField, ImageField, CharField, DictField
+from rest_framework.serializers import  ModelSerializer, ReadOnlyField, ListField, IntegerField, SerializerMethodField, ImageField, CharField, DictField, Serializer
 from .models import *
 import cloudinary
 import cloudinary.uploader
@@ -59,13 +59,13 @@ class OptionPictureSerializer(ModelSerializer):
 class CreateOptionSerializer(ModelSerializer):
     picture_set = OptionPictureSerializer(many=True, read_only=True)
     uploaded_images = ListField(
-        child = Base64ImageField(),
+        child = Base64ImageField(allow_empty_file=False, required=True),
         write_only = True,
         required=True
     )
     class Meta:
         model = Option
-        fields = ["unit", "unit_in_stock", "price", "weight", "height", "width", "length", "base_product", "picture_set", "uploaded_images"]
+        fields = ["id", "unit", "unit_in_stock", "price", "weight", "height", "width", "length", "base_product", "picture_set", "uploaded_images"]
         extra_kwargs = {
             'base_product': {'read_only': 'true'},
         }
@@ -101,18 +101,21 @@ class ListProductSerializer(ModelSerializer):
 # Create product serializer
 class ProductSerializer(ModelSerializer):
     min_price = ReadOnlyField()
-
+    image = Base64ImageField(required=True, write_only=True)
     class Meta:
         model = Product
-        fields = "__all__"
+        fields = ["id", "name", "is_available", "sold_amount", "picture", "description", "owner", "image", "min_price", "categories"]
         extra_kwargs = {
             'owner': {'read_only': 'true'},
             'sold_amount': {'read_only': 'true'},
+            'picture': {'read_only': 'true'},
+            'image': {'write_only': 'true', 'required': 'true'}
         }
     
     def create(self, validated_data):
         category_set = validated_data.pop('categories')
-        pd = Product.objects.create(owner=self.context['request'].user, **validated_data)
+        pd_img = validated_data.pop('image')
+        pd = Product.objects.create(owner=self.context['request'].user, **validated_data, picture=pd_img)
         pd.categories.set(category_set)
         return pd
 
