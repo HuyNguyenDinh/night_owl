@@ -381,6 +381,6 @@ class MomoPayedView(APIView):
             if instance:
                 order_id = instance.get('order_id')
                 if order_id:
-                    pay_result = pay_bill_online()
+                    pay_result = pay_bill_online(order_id=order_id)
         finally:
             return Response(status=status.HTTP_204_NO_CONTENT)
