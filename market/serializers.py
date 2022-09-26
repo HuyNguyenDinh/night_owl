@@ -309,16 +309,3 @@ class AddCartSerializer(ModelSerializer):
             'customer': {'read_only': 'true'},
             'product_option': {'read_only': 'true'},
         }
-
-class MomoSerializer(Serializer):
-    partnerCode = CharField()
-    orderId = CharField()
-    requestId = CharField()
-    amount = IntegerField()
-    orderInfo = CharField()
-    orderType = CharField()
-    transId = IntegerField()
-    message = CharField()
-    responseTime = IntegerField()
-    extraData = CharField()
-    signature = CharField()
