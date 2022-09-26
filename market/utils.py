@@ -84,13 +84,14 @@ def get_shipping_service(order_id):
     customer = order.customer
     header = {
         'Content-Type': 'application/json',
-        'Token': '8ae8d191-18b9-11ed-b136-06951b6b7f89'
+        'token': '8ae8d191-18b9-11ed-b136-06951b6b7f89'
     }
     data = {
         "shop_id": 117552,
         "from_district": seller.address.district_id,
         "to_district": customer.address.district_id
     }
+    print(data)
     r = json.dumps(data)
     loaded_r = json.loads(r)
     print(loaded_r)
@@ -111,7 +112,7 @@ def create_shipping_order(order_id):
     if services.get('code') == 200:
         service_data = services.get('data')
         service_type_id = service_data[0].get('service_type_id')
-        print(service_type_id, type(service_type_id))
+        service_id = service_data[0].get('service_id')
     items = []
     for i in order.orderdetail_set.all():
         item = {
@@ -145,6 +146,7 @@ def create_shipping_order(order_id):
             "width": max_lwh.get('max_width'),
             "height": max_lwh.get('max_height'),
             "insurance_value": int(value),
+            "service_id" : service_id,
             "service_type_id": service_type_id,
             "coupon": None,
             "items": items

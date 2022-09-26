@@ -1,10 +1,14 @@
 from dataclasses import field
+
 from rest_framework.serializers import  ModelSerializer, ReadOnlyField, ListField, IntegerField, SerializerMethodField, ImageField, CharField, DictField, Serializer, DecimalField
+
 from .models import *
 import cloudinary
 import cloudinary.uploader
 from django.db.models import Sum, F
 import decimal
+from drf_extra_fields.fields import Base64ImageField
+from django.db import transaction
 
 
 class AddressSerializer(ModelSerializer):
@@ -48,27 +52,30 @@ class OptionPictureSerializer(ModelSerializer):
         model = Picture
         fields = "__all__"
         extra_kwargs = {
-            'product_option': {'read_only': 'true'}
+            'product_option': {'read_only': 'true'},
+            'pk': {'read_only': 'true'}
         }
 
 # Create multiple options
 class CreateOptionSerializer(ModelSerializer):
-    image_set = ListField(
-        child = ImageField(),
-        write_only=True
-    )
     picture_set = OptionPictureSerializer(many=True, read_only=True)
+    uploaded_images = ListField(
+        child = Base64ImageField(allow_empty_file=False, required=True),
+        write_only = True,
+        required=True
+    )
     class Meta:
         model = Option
-        fields = "__all__"
+        fields = ["id", "unit", "unit_in_stock", "price", "weight", "height", "width", "length", "base_product", "picture_set", "uploaded_images"]
         extra_kwargs = {
             'base_product': {'read_only': 'true'},
         }
     
     def create(self, validated_data):
-        pictures = validated_data.pop('image_set')
-        option = Option(**validated_data)
-        option.save()
+        uploaded_data = validated_data.pop('uploaded_images')
+        option = Option.objects.create(**validated_data)
+        for uploaded_item in uploaded_data:
+            new_product_image = Picture.objects.create(product_option = option, image = uploaded_item)
         return option
 
 class OptionSerializer(ModelSerializer):
@@ -95,18 +102,21 @@ class ListProductSerializer(ModelSerializer):
 # Create product serializer
 class ProductSerializer(ModelSerializer):
     min_price = ReadOnlyField()
-
+    image = Base64ImageField(required=True, write_only=True)
     class Meta:
         model = Product
-        fields = "__all__"
+        fields = ["id", "name", "is_available", "sold_amount", "picture", "description", "owner", "image", "min_price", "categories"]
         extra_kwargs = {
             'owner': {'read_only': 'true'},
             'sold_amount': {'read_only': 'true'},
+            'picture': {'read_only': 'true'},
+            'image': {'write_only': 'true', 'required': 'true'}
         }
     
     def create(self, validated_data):
         category_set = validated_data.pop('categories')
-        pd = Product.objects.create(owner=self.context['request'].user, **validated_data)
+        pd_img = validated_data.pop('image')
+        pd = Product.objects.create(owner=self.context['request'].user, **validated_data, picture=pd_img)
         pd.categories.set(category_set)
         return pd
 
@@ -273,11 +283,8 @@ class CartSerializer(ModelSerializer):
         model = CartDetail
         fields = "__all__"
         extra_kwargs = {
-            'customer': {'read_only': 'true'},
+            'customer': {'read_only': True},
         }
-
-    def to_representation(self, instance):
-        return super().to_representation(instance)
 
 class CartInStoreSerializer(ModelSerializer):
     carts = SerializerMethodField('get_carts_user', read_only=True)

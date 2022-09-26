@@ -140,33 +140,29 @@ class ProductViewSet(viewsets.ModelViewSet):
         pd = Product.objects.get(pk=pk)
         try:
             self.check_object_permissions(request, pd)
+        except:
+            return Response({'message': 'please login to comment'}, status=status.HTTP_403_FORBIDDEN)
+        else:
             serializer = CreateRatingSerializer(data=request.data)
             if serializer.is_valid():
                 serializer.save(creator=request.user, product=pd)
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
             return Response({'message': 'not valid comment'}, status=status.HTTP_400_BAD_REQUEST)
-        except:
-            return Response({'message': 'please login to comment'}, status=status.HTTP_403_FORBIDDEN)
     
     @action(methods=['post'], detail=True, url_path='add-option')
     def add_option(self, request, pk):
         pd = Product.objects.get(pk=pk)
         try:
             self.check_object_permissions(request, pd)
-            serializer = CreateOptionSerializer(data=request.data)
-            if serializer.is_valid():
-                obj = serializer.save(base_product=pd)
-                if request.data.getlist('image_set'):
-                    for img in request.data.getlist('image_set'):
-                        try:
-                            _ = Picture.objects.create(image=img, product_option=obj)
-                        except:
-                            return Response({'message': "added option to product but cannot add picture to options"},
-                                            status=status.HTTP_400_BAD_REQUEST)
-                return Response(serializer.data, status = status.HTTP_201_CREATED)
-            return Response({'message': "cannot add options to product"}, status=status.HTTP_400_BAD_REQUEST)
         except:
             return Response({'message': 'you do not have permission'}, status=status.HTTP_403_FORBIDDEN)
+        else:
+            serializer = CreateOptionSerializer(data=request.data)
+            if serializer.is_valid(raise_exception=True):
+                serializer.save(base_product=pd)
+                return Response(serializer.data, status = status.HTTP_201_CREATED)
+            return Response({'message': "cannot add options to product"}, status=status.HTTP_400_BAD_REQUEST)
+        
 
     @action(methods=['get'], detail=True, url_path='options')
     def get_options(self, request, pk):
@@ -206,9 +202,19 @@ class OptionViewSet(viewsets.ViewSet, generics.UpdateAPIView, generics.DestroyAP
     def add_to_cart(self, request, pk):
         op = Option.objects.get(pk=pk)
         cart = CartSerializer(data=request.data)
-        if cart.is_valid():
-            cart.save(customer=request.user, product_option=op)
-            return Response(cart.data, status=status.HTTP_201_CREATED)
+        if cart.is_valid(raise_exception=True):
+            try:
+                cart.save(customer=request.user, product_option=op)
+            except:
+                quantity = cart.validated_data.get('quantity')
+                with transaction.atomic():
+                    cart_exist = CartDetail.objects.select_for_update().get(customer=request.user, product_option=op)
+                    cart_exist.quantity = F('quantity') + quantity
+                    cart_exist.save()
+                cart_exist = CartDetail.objects.get(customer=request.user, product_option=op)
+                return Response(CartSerializer(cart_exist).data)
+            else:
+                return Response(cart.data)
         return Response({'message': 'cannot add product to your cart'}, status=status.HTTP_400_BAD_REQUEST)
         
 
@@ -301,14 +307,15 @@ class OrderViewSet(viewsets.ModelViewSet):
             return Response({'message': 'order not found'}, status=status.HTTP_404_NOT_FOUND)
         try:
             self.check_object_permissions(request, order)
-            if order.status != 1:
-                return Response({'message': 'order not approving'}, status=status.HTTP_406_NOT_ACCEPTABLE)
-            if update_shipping_code(order_id=order.id):
-                order.refresh_from_db()
-                return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
-            return Response({'message': 'failed to create shipping order'}, status=status.HTTP_400_BAD_REQUEST)
         except:
             return Response({'message': 'you do not have permission'}, status=status.HTTP_403_FORBIDDEN)
+        if order.status != 1:
+            return Response({'message': 'order not approving'}, status=status.HTTP_406_NOT_ACCEPTABLE)
+        if update_shipping_code(order_id=order.id):
+            order.refresh_from_db()
+            return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
+        return Response({'message': 'failed to create shipping order'}, status=status.HTTP_400_BAD_REQUEST)
+    
 
 
 class OrderDetailViewSet(viewsets.ModelViewSet):
