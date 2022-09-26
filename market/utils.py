@@ -111,6 +111,7 @@ def create_shipping_order(order_id):
     if services.get('code') == 200:
         service_data = services.get('data')
         service_type_id = service_data[0].get('service_type_id')
+        print(service_type_id, type(service_type_id))
     items = []
     for i in order.orderdetail_set.all():
         item = {
@@ -130,7 +131,7 @@ def create_shipping_order(order_id):
             "return_phone": seller.phone_number,
             "return_address": seller.address.full_address,
             "return_district_id": seller.address.district_id,
-            "return_ward_code": seller.address.ward_id,
+            "return_ward_code": str(seller.address.ward_id),
             "client_order_code": str(order.id),
             "to_name": customer.last_name + " " + customer.first_name,
             "to_phone": customer.phone_number,
@@ -163,13 +164,14 @@ def create_shipping_order(order_id):
     return x.text
 
 @transaction.atomic
-def checkout_order(order_id, voucher_code=None):
+def checkout_order(order_id, voucher_code=None, payment_type=0):
     order = Order.objects.select_for_update().get(pk=order_id)
     for i in order.orderdetail_set.all():
         decrease_option_unit_instock(i.id)
 
     # update status
     order.status = 1
+    order.payment_type = payment_type
     order.save()
     # calculate value to create bill
     value = 0
@@ -256,3 +258,13 @@ def make_order_from_list_cart(list_cart_id, user_id, data):
                         order.refresh_from_db()
                     result.append(order)
     return result
+
+@transaction.atomic()
+def pay_bill_online(order_id, voucher_code=None):
+    checkout_result = checkout_order(order_id=order_id, payment_type=1)
+    if checkout_result:
+        bill = Bill.objects.select_for_update().get(order_payed__id=order_id)
+        bill.payed = True
+        bill.save()
+        return True
+    return False

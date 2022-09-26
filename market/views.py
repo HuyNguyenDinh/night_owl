@@ -2,6 +2,7 @@ from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, JSONParser
 from rest_framework.decorators import action
 from rest_framework import status, generics, viewsets, permissions
+from rest_framework.views import APIView
 from .models import *
 from .serializers import *
 from .perms import *
@@ -10,6 +11,7 @@ from django.db.models import Q
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
 from market.utils import *
+from .mongo_connect import *
 # Create your views here.
 
 class UserViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.UpdateAPIView):
@@ -233,9 +235,9 @@ class OrderViewSet(viewsets.ModelViewSet):
         state = self.request.query_params.get('state')
         if state:
             if state == '0':
-                orders =  orders.filter(customer = self.request.user.id)
+                orders = orders.filter(customer = self.request.user.id)
             elif state == '1':
-                orders =  orders.filter(store = self.request.user.id)
+                orders = orders.filter(store = self.request.user.id)
         return orders
 
 
@@ -358,3 +360,20 @@ class VoucherViewSet(viewsets.ModelViewSet):
         elif self.action == 'create':
             return [BusinessPermission(), ]
         return [BusinessOwnerPermission(), ]
+
+class MomoPayedView(APIView):
+    def post(self, request, signature):
+        try:
+            orderId = request.data.get('orderId')
+            requestId = request.data.get('requestId')
+            resultCode = request.data.get('resultCode')
+        except:
+            print('No payload data')
+        else:
+            instance = get_instance_from_signature_and_request_id(signature=signature, orderId=orderId, requestId=requestId)
+            if instance:
+                order_id = instance.get('order_id')
+                if order_id:
+                    pay_result = pay_bill_online()
+        finally:
+            return Response(status=status.HTTP_204_NO_CONTENT)

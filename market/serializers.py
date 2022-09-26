@@ -1,5 +1,5 @@
 from dataclasses import field
-from rest_framework.serializers import  ModelSerializer, ReadOnlyField, ListField, IntegerField, SerializerMethodField, ImageField, CharField, DictField
+from rest_framework.serializers import  ModelSerializer, ReadOnlyField, ListField, IntegerField, SerializerMethodField, ImageField, CharField, DictField, Serializer, DecimalField
 from .models import *
 import cloudinary
 import cloudinary.uploader
@@ -310,3 +310,15 @@ class AddCartSerializer(ModelSerializer):
             'product_option': {'read_only': 'true'},
         }
 
+class MomoSerializer(Serializer):
+    partnerCode = CharField()
+    orderId = CharField()
+    requestId = CharField()
+    amount = IntegerField()
+    orderInfo = CharField()
+    orderType = CharField()
+    transId = IntegerField()
+    message = CharField()
+    responseTime = IntegerField()
+    extraData = CharField()
+    signature = CharField()

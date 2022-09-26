@@ -6,7 +6,11 @@ import requests
 import hmac
 import hashlib
 from .models import *
+import pymongo
+from pymongo.server_api import ServerApi
 
+client = pymongo.MongoClient("mongodb+srv://mongodb:0937461321Huy@nightowl.icksujp.mongodb.net/?retryWrites=true&w=majority", server_api=ServerApi('1'))
+db_payment = client.payment
 # parameters send to MoMo get get payUrl
 def send_order(order_id):
     order = Order.objects.get(pk=order_id)
@@ -62,11 +66,12 @@ def send_order(order_id):
         'items': items,
         'signature': signature
     }
-    data = json.dumps(data)
-
+    loaded_data = json.dumps(data)
 
     clen = len(data)
-    response = requests.post(endpoint, data=data,
+    response = requests.post(endpoint, data=loaded_data,
                              headers={'Content-Type': 'application/json', 'Content-Length': str(clen)})
+    response_json = response.json()
 
-    return response.json()['payUrl']
+    res = dict(response_json, **{"order_id": order.id, "signature": data.get("signature")})
+    return res
