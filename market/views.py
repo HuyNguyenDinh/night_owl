@@ -378,9 +378,9 @@ class MomoPayedView(APIView):
             print('No payload data')
         else:
             instance = get_instance_from_signature_and_request_id(signature=signature, orderId=orderId, requestId=requestId)
-            if instance:
+            if resultCode == 0 and instance:
                 order_id = instance.get('order_id')
                 if order_id:
-                    pay_result = pay_bill_online(order_id=order_id)
+                    pay_bill_online(order_id=order_id)
         finally:
             return Response(status=status.HTTP_204_NO_CONTENT)
