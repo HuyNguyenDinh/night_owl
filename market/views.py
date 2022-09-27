@@ -239,11 +239,15 @@ class OrderViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         orders = Order.objects.filter(Q(customer = self.request.user.id) | Q(store = self.request.user.id))
         state = self.request.query_params.get('state')
+        checkout_status = self.request.query_params.get('status')
+        print(checkout_status)
         if state:
             if state == '0':
                 orders = orders.filter(customer = self.request.user.id)
             elif state == '1':
                 orders = orders.filter(store = self.request.user.id)
+        if not checkout_status or checkout_status == "0":
+            orders = orders.filter(bill__isnull=True)
         return orders
 
 
@@ -270,31 +274,43 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     @action(methods=['post'], detail=False, url_path='checkout_order')
     def checkout(self, request):
-        order = Order.objects.filter(customer = request.user.id, status=0)
+        order = Order.objects.filter(customer=request.user.id, status=0)
         if order:
             voucher_code = request.data.get('list_voucher')
             result = []
             success = False
+            payment_type = request.data.get('payment_type')
             try:
-                with transaction.atomic():
-                    for o in order:
-                        voucher_code_order = None
-                        if voucher_code is not None:
-                            voucher_code_order = voucher_code.get(str(o.id))
-                        if voucher_code_order is not None:
+                for o in order:
+                    voucher_code_order = None
+                    if voucher_code is not None:
+                        voucher_code_order = voucher_code.get(str(o.id))
+                    if voucher_code_order is not None:
+                        if payment_type:
+                            m = checkout_order(order_id=o.id, voucher_code=voucher_code_order,
+                                               payment_type=payment_type, status=0)
+                        else:
                             m = checkout_order(order_id=o.id, voucher_code=voucher_code_order)
+                    else:
+                        if payment_type:
+                            m = checkout_order(order_id=o.id, payment_type=payment_type, status=0)
                         else:
                             m = checkout_order(order_id=o.id)
-                        if m is None:
-                            raise Exception
-                        result.append(m)
-                    success = True
+                    if m is None:
+                        raise Exception
+                    result.append(m)
+                success = True
             except:
                 return Response({'message':'some product options has out of stock'}, status=status.HTTP_400_BAD_REQUEST)
             if success:
                 for i in result:
                     odds = i.orderdetail_set.values_list('cart_id__id', flat=True)
                     CartDetail.objects.filter(id__in=list(set(odds))).delete()
+                if payment_type:
+                    list_id = [x.id for x in result]
+                    instance = import_signature(list_id)
+                    return Response({"message": "Please pay with the link to complete checkout the order",
+                                     "pay_url": instance.get("payUrl")}, status=status.HTTP_201_CREATED)
                 return Response(OrderSerializer(result, many=True).data, status=status.HTTP_202_ACCEPTED)
             return Response({'message': 'can not checkout the orders'}, status=status.HTTP_406_NOT_ACCEPTABLE)
         return Response({'message': 'can not found the orders uncheckout'}, status=status.HTTP_404_NOT_FOUND)
@@ -369,18 +385,22 @@ class VoucherViewSet(viewsets.ModelViewSet):
         return [BusinessOwnerPermission(), ]
 
 class MomoPayedView(APIView):
-    def post(self, request, signature):
+    def post(self, request, secret_link):
         try:
             orderId = request.data.get('orderId')
             requestId = request.data.get('requestId')
             resultCode = request.data.get('resultCode')
+            transId = request.data.get('transId')
+            amount = request.data.get('amount')
+
         except:
             print('No payload data')
         else:
-            instance = get_instance_from_signature_and_request_id(signature=signature, orderId=orderId, requestId=requestId)
-            if instance:
-                order_id = instance.get('order_id')
-                if order_id:
-                    pay_result = pay_bill_online(order_id=order_id)
+            instance = get_instance_from_signature_and_request_id(secret_link=secret_link, orderId=orderId, requestId=requestId)
+            momo_order = check_momo_order_status(order_id=orderId, request_id=requestId)
+            if instance and momo_order.get('amount') == amount == instance.get('amount') and momo_order.get('resultCode') == resultCode == 0:
+                    order_ids = instance.get('order_ids')
+                    if not complete_checkout_orders_with_payment_gateway(order_ids):
+                        momo_refund(transId, instance.get("amount"), instance.get('requestId'))
         finally:
             return Response(status=status.HTTP_204_NO_CONTENT)
