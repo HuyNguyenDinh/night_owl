@@ -165,31 +165,52 @@ def create_shipping_order(order_id):
     x = requests.post(url=url, json=loaded_r, headers=header)
     return x.text
 
-@transaction.atomic
-def checkout_order(order_id, voucher_code=None, payment_type=0):
-    order = Order.objects.select_for_update().get(pk=order_id)
-    for i in order.orderdetail_set.all():
-        decrease_option_unit_instock(i.id)
 
-    # update status
-    order.status = 1
-    order.payment_type = payment_type
-    order.save()
-    # calculate value to create bill
-    value = 0
-    voucher = None
-    if voucher_code is not None:
-        voucher = Voucher.objects.filter(code=voucher_code)
-    if voucher is not None and voucher.exists():
-        value = calculate_value(order_id=order.id, voucher_id=voucher[0].id)
-        if check_discount_in_order(order.orderdetail_set.all(), voucher[0].id) is not None:
-            order.voucher_apply = voucher[0]
+def checkout_order(order_id, voucher_code=None, payment_type=0, status=1):
+    try:
+        value = 0
+        with transaction.atomic():
+            order = Order.objects.select_for_update().get(pk=order_id, status=0)
+            if payment_type == 0:
+                for i in order.orderdetail_set.all():
+                    decrease_option_unit_instock(i.id)
+
+            # update status
+            order.status = status
+            order.payment_type = payment_type
             order.save()
-    else:
-        value = calculate_value(order_id=order.id)
-    order.bill = Bill.objects.create(value=value, order_payed=order, customer=order.customer)
+    # calculate value to create bill
+            voucher = None
+            if voucher_code is not None:
+                voucher = Voucher.objects.filter(code=voucher_code)
+            if voucher is not None and voucher.exists():
+                value = calculate_value(order_id=order.id, voucher_id=voucher[0].id)
+                if check_discount_in_order(order.orderdetail_set.all(), voucher[0].id) is not None:
+                    order.voucher_apply = voucher[0]
+                    order.save()
+            else:
+                value = calculate_value(order_id=order.id)
+            order.bill = Bill.objects.create(value=value, order_payed=order, customer=order.customer, payed=bool(status))
+    except:
+        return None
     order.refresh_from_db()
     return order
+
+@transaction.atomic
+def complete_checkout_orders_with_payment_gateway(order_ids):
+    try:
+        with transaction.atomic():
+            orders = Order.objects.select_for_update().filter(pk__in=order_ids,  status=0, payment_type=1)
+            if orders:
+                for order in orders:
+                    for i in order.orderdetail_set.all():
+                        decrease_option_unit_instock(i.id)
+                    order.status = 1
+                    order.save()
+    except:
+        return False
+    else:
+        return True
 
 # Calculate shipping fee
 def calculate_shipping_fee(order_id):
@@ -221,20 +242,23 @@ def calculate_shipping_fee(order_id):
     return x.text
 
 # Create shipping code that match with order
-@transaction.atomic
 def update_shipping_code(order_id):
-    order = Order.objects.select_for_update().get(pk=order_id)
-    shipping_order = json.loads(create_shipping_order(order_id=order.id))
-    if shipping_order.get('code') == 200:
-        data = shipping_order.get('data')
-        order.can_destroy = False
-        order.shipping_code = data.get('order_code')
-        order.total_shipping_fee = data.get('total_fee')
-        order.completed_date = shipping_order.get('expected_delivery_time')
-        order.status = 2
-        order.save()
+    try:
+        with transaction.atomic():
+            order = Order.objects.select_for_update().get(pk=order_id)
+            shipping_order = json.loads(create_shipping_order(order_id=order.id))
+            if shipping_order.get('code') == 200:
+                data = shipping_order.get('data')
+                order.can_destroy = False
+                order.shipping_code = data.get('order_code')
+                order.total_shipping_fee = data.get('total_fee')
+                order.completed_date = shipping_order.get('expected_delivery_time')
+                order.status = 2
+                order.save()
+    except:
+        return False
+    else:
         return True
-    return False
 
 @transaction.atomic
 def make_order_from_list_cart(list_cart_id, user_id, data):
@@ -261,12 +285,3 @@ def make_order_from_list_cart(list_cart_id, user_id, data):
                     result.append(order)
     return result
 
-@transaction.atomic()
-def pay_bill_online(order_id, voucher_code=None):
-    checkout_result = checkout_order(order_id=order_id, payment_type=1)
-    if checkout_result:
-        bill = Bill.objects.select_for_update().get(order_payed__id=order_id)
-        bill.payed = True
-        bill.save()
-        return True
-    return False

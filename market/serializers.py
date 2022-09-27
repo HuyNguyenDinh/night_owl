@@ -194,7 +194,7 @@ class ListOrderSerializer(ModelSerializer):
             return bill.value
         except:
             order_details = OrderDetail.objects.filter(order=obj)
-            return order_details.aggregate(total_price = Sum(F('quantity') * F('unit_price')))['total_price']
+            return order_details.aggregate(total_price=Sum(F('quantity') * F('unit_price')))['total_price']
 
 class OrderSerializer(ModelSerializer):
     list_cart = ListField(
@@ -244,6 +244,7 @@ class CheckoutOrderSerializer(ModelSerializer):
         write_only=True,
         required=False
     )
+    payment_type = IntegerField(max_value=1, min_value=0, required=False)
     class Meta:
         model = Order
         exclude = ['customer']

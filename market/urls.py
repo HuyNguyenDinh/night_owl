@@ -15,8 +15,8 @@ router.register("cart", views.CartDetailViewSet, basename="cart")
 router.register("address", views.AddressViewSet, basename="user_address")
 router.register("voucher", views.VoucherViewSet, basename="voucher")
 
-base64_pattern = r'(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$'
+
 urlpatterns = [
     path('', include(router.urls)),
-    path('momo-payed/<str:signature>/', views.MomoPayedView.as_view())
+    path('momo-payed/<str:secret_link>/', views.MomoPayedView.as_view())
 ]
