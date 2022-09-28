@@ -274,7 +274,7 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     @action(methods=['post'], detail=False, url_path='checkout_order')
     def checkout(self, request):
-        order = Order.objects.filter(customer=request.user.id, status=0)
+        order = Order.objects.filter(customer=request.user.id, status=0, bill__isnull=True)
         if order:
             voucher_code = request.data.get('list_voucher')
             result = []
