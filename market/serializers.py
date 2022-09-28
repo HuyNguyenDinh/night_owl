@@ -230,7 +230,7 @@ class OrderSerializer(ModelSerializer):
             return bill.value
         except:
             order_details = OrderDetail.objects.filter(order=obj)
-            return order_details.aggregate(total_price = Sum(F('quantity') * F('unit_price')))['total_price']
+            return order_details.aggregate(total_price=Sum(F('quantity') * F('unit_price')))['total_price']
 
 class VoucherSerializer(ModelSerializer):
 
