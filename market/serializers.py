@@ -19,9 +19,10 @@ class AddressSerializer(ModelSerializer):
 
 class UserSerializer(ModelSerializer):
     address = AddressSerializer(required=False, read_only=True)
+    cart_quantity = SerializerMethodField(method_name="count_cart_quantity", read_only=True)
     class Meta:
         model = User
-        fields = ['id', 'first_name', 'last_name', 'email', 'phone_number', 'is_staff', 'is_business', 'password', 'is_active', 'verified', 'provider', 'avatar', 'address']
+        fields = ['id', 'first_name', 'last_name', 'email', 'phone_number', 'is_staff', 'is_business', 'password', 'is_active', 'verified', 'provider', 'avatar', 'address', 'cart_quantity']
         extra_kwargs = {
             'password': {'write_only': 'true'},
             'is_staff': {'read_only': 'true'},
@@ -35,7 +36,10 @@ class UserSerializer(ModelSerializer):
         user.set_password(validated_data['password'])
         user.save()
         return user
-    
+
+    def count_cart_quantity(self, obj):
+        return obj.cartdetail_set.all().count()
+
     
 class UserLessInformationSerializer(ModelSerializer):
     class Meta:

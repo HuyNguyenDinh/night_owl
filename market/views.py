@@ -12,6 +12,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
 from market.utils import *
 from .mongo_connect import *
+from threading import Thread
 # Create your views here.
 
 class UserViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.UpdateAPIView):
@@ -225,7 +226,7 @@ class OrderViewSet(viewsets.ModelViewSet):
     ordering_fields = ['completed_date', 'order_date', 'bill__value']
 
     def get_permissions(self):
-        if self.action in ["accept_order", "delete"]:
+        if self.action in ["accept_order", "delete", "cancel_order"]:
             return [StoreOwnerPermission(), ]
         return [permissions.IsAuthenticated() ,]
         
@@ -339,7 +340,27 @@ class OrderViewSet(viewsets.ModelViewSet):
             order = Order.objects.get(pk=pk)
         except Order.DoesNotExist:
             return Response({'message': 'order not found'}, status=status.HTTP_404_NOT_FOUND)
-    
+        try:
+            self.check_object_permissions(request, order)
+        except:
+            return Response({'message': 'you do not have permission'}, status=status.HTTP_403_FORBIDDEN)
+        else:
+            if cancel_order(order.id):
+                return Response({"message": "order canceled", "order_id": order.id}, status=status.HTTP_200_OK)
+            return Response({"message": "can not cancel order"}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(methods=['get'], detail=True, url_path="receive_order")
+    def receive_order(self, request, pk):
+        try:
+            order = Order.objects.get(pk=pk, status=2)
+        except:
+            return Response({"message": "order not found"}, status=status.HTTP_404_NOT_FOUND)
+        try:
+            self.check_object_permissions(request, order)
+        except:
+            return Response({'message': 'you do not have permission'}, status=status.HTTP_403_FORBIDDEN)
+        else:
+            return Response({'message': 'order completed'}, status=status.HTTP_200_OK)
 
 
 class OrderDetailViewSet(viewsets.ModelViewSet):
@@ -409,6 +430,7 @@ class MomoPayedView(APIView):
             if instance and momo_order.get('amount') == amount == instance.get('amount') and momo_order.get('resultCode') == resultCode == 0:
                     order_ids = instance.get('order_ids')
                     if not complete_checkout_orders_with_payment_gateway(order_ids):
-                        momo_refund(transId, instance.get("amount"), instance.get('requestId'))
+                        x = Thread(target=momo_refund, args=(transId, amount, requestId))
+                        x.start()
         finally:
             return Response(status=status.HTTP_204_NO_CONTENT)

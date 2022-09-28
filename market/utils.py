@@ -5,7 +5,9 @@ from django.db import transaction
 import requests
 import json
 from market.serializers import *
-import decimal
+from threading import Thread
+from night_owl_market import settings
+from django.core.mail import send_mail
 
 ############ Order #############
 # Checkout Order: Decrease unit in stock of option in order details ->
@@ -64,6 +66,9 @@ def decrease_option_unit_instock(orderdetail_id):
     option = Option.objects.select_for_update().get(orderdetail__id=orderdetail_id)
     option.unit_in_stock = F('unit_in_stock') - odd.quantity
     option.save()
+    product = Product.objects.select_for_update().get(pk=option.base_product.id)
+    product.sold_amount = F('sold_amount') + odd.quantity
+    product.save()
     option.refresh_from_db()
     return option
 
@@ -162,6 +167,46 @@ def create_shipping_order(order_id):
     x = requests.post(url=url, json=loaded_r, headers=header)
     return x.text
 
+def increase_unit_in_stock_when_cancel_order(order_id):
+    order = Order.objects.get(pk=order_id)
+    for odd in order.orderdetail_set.all():
+        print(odd.id)
+        print(odd.product_option.id)
+        try:
+            with transaction.atomic():
+                op = Option.objects.select_for_update().get(id=odd.product_option.id)
+                print(op.unit_in_stock)
+                print(odd.quantity)
+                op.unit_in_stock = F('unit_in_stock') + odd.quantity
+                op.save()
+                print("increased unit")
+                print(op.unit_in_stock)
+        except:
+            continue
+    return True
+
+def cancel_order(order_id):
+    try:
+        with transaction.atomic():
+            order = Order.objects.select_for_update().get(pk=order_id, status=1)
+            order.status = 4
+            order.save()
+            increase_unit_in_stock_when_cancel_order(order.id)
+    except:
+        return False
+    else:
+        return True
+
+def receive_order(order_id):
+    try:
+        with transaction.atomic():
+            order = Order.objects.get(pk=order_id)
+            order.status = 3
+            order.save()
+    except:
+        return False
+    else:
+        return True
 
 def checkout_order(order_id, voucher_code=None, payment_type=0, status=1):
     try:
@@ -171,7 +216,6 @@ def checkout_order(order_id, voucher_code=None, payment_type=0, status=1):
             if payment_type == 0:
                 for i in order.orderdetail_set.all():
                     decrease_option_unit_instock(i.id)
-
             # update status
             order.status = status
             order.payment_type = payment_type
@@ -282,3 +326,8 @@ def make_order_from_list_cart(list_cart_id, user_id, data):
                     result.append(order)
     return result
 
+def send_email(receiver, subject, content):
+    to = [receiver]
+    send_subject = subject
+    send_content = content
+    return send_mail(send_subject, send_content, settings.EMAIL_HOST_USER, to, False)
