@@ -91,10 +91,8 @@ def get_shipping_service(order_id):
         "from_district": seller.address.district_id,
         "to_district": customer.address.district_id
     }
-    print(data)
     r = json.dumps(data)
     loaded_r = json.loads(r)
-    print(loaded_r)
     url = 'https://dev-online-gateway.ghn.vn/shiip/public-api/v2/shipping-order/available-services'
     x = requests.post(url=url, json=loaded_r, headers=header)
     return x.text
@@ -153,7 +151,6 @@ def create_shipping_order(order_id):
         }
     r = json.dumps(data)
     loaded_r = json.loads(r)
-    print(loaded_r)
     header = {
         'Content-Type': 'application/json',
         'ShopId': '117552',
