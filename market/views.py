@@ -282,6 +282,7 @@ class OrderViewSet(viewsets.ModelViewSet):
             payment_type = request.data.get('payment_type')
             try:
                 for o in order:
+                    m = None
                     voucher_code_order = None
                     if voucher_code is not None:
                         voucher_code_order = voucher_code.get(str(o.id))
@@ -331,6 +332,13 @@ class OrderViewSet(viewsets.ModelViewSet):
             order.refresh_from_db()
             return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
         return Response({'message': 'failed to create shipping order'}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(methods=['get'], detail=True, url_path='cancel_order')
+    def cancel_order(self, request, pk):
+        try:
+            order = Order.objects.get(pk=pk)
+        except Order.DoesNotExist:
+            return Response({'message': 'order not found'}, status=status.HTTP_404_NOT_FOUND)
     
 
 
