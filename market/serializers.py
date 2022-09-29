@@ -22,13 +22,14 @@ class UserSerializer(ModelSerializer):
     cart_quantity = SerializerMethodField(method_name="count_cart_quantity", read_only=True)
     class Meta:
         model = User
-        fields = ['id', 'first_name', 'last_name', 'email', 'phone_number', 'is_staff', 'is_business', 'password', 'is_active', 'verified', 'provider', 'avatar', 'address', 'cart_quantity']
+        fields = ['id', 'first_name', 'last_name', 'email', 'phone_number', 'is_staff', 'is_business', 'password', 'is_active', 'verified', 'provider', 'avatar', 'address', 'cart_quantity', 'balance']
         extra_kwargs = {
             'password': {'write_only': 'true'},
             'is_staff': {'read_only': 'true'},
             'is_business': {'read_only': 'true'},
             'verified': {'read_only': 'true'},
             'is_active': {'read_only': 'true'},
+            'balance': {'read_only': 'true'}
         }
 
     def create(self, validated_data):
@@ -248,7 +249,7 @@ class CheckoutOrderSerializer(ModelSerializer):
         write_only=True,
         required=False
     )
-    payment_type = IntegerField(max_value=1, min_value=0, required=False)
+    payment_type = IntegerField(max_value=2, min_value=0, required=False)
     class Meta:
         model = Order
         exclude = ['customer']

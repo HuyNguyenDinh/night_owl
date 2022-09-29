@@ -1,3 +1,5 @@
+import decimal
+
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import MaxValueValidator, MinValueValidator
@@ -41,7 +43,7 @@ class User(AbstractUser):
     phone_number = models.CharField(unique=True, blank=False, null=False, max_length=50)
     avatar = models.ImageField(upload_to='upload/%Y/%m', null=True, blank=True)
     verified = models.BooleanField(default=False)
-    balance = models.PositiveIntegerField(default=0, null=False, blank=False)
+    balance = models.DecimalField(decimal_places=2, max_digits=20, validators=[MinValueValidator(decimal.Decimal('0.01'))])
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []

@@ -286,12 +286,12 @@ class OrderViewSet(viewsets.ModelViewSet):
                     if voucher_code_order is not None:
                         if payment_type:
                             m = checkout_order(order_id=o.id, voucher_code=voucher_code_order,
-                                               payment_type=payment_type, status=0)
+                                               payment_type=payment_type, raw_status=0)
                         else:
                             m = checkout_order(order_id=o.id, voucher_code=voucher_code_order)
                     else:
                         if payment_type:
-                            m = checkout_order(order_id=o.id, payment_type=payment_type, status=0)
+                            m = checkout_order(order_id=o.id, payment_type=payment_type, raw_status=0)
                         else:
                             m = checkout_order(order_id=o.id)
                     if m is None:
@@ -299,7 +299,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                     result.append(m)
                 success = True
             except:
-                return Response({'message':'some product options has out of stock'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'message':'some product options has out of stock or your balance not enough to pay'}, status=status.HTTP_400_BAD_REQUEST)
             if success:
                 for i in result:
                     odds = i.orderdetail_set.values_list('cart_id__id', flat=True)
@@ -343,7 +343,7 @@ class OrderViewSet(viewsets.ModelViewSet):
     @action(methods=['get'], detail=True, url_path='cancel_order')
     def cancel_order(self, request, pk):
         try:
-            order = Order.objects.get(pk=pk)
+            order = Order.objects.get(pk=pk, status=1)
         except Order.DoesNotExist:
             return Response({'message': 'order not found'}, status=status.HTTP_404_NOT_FOUND)
         try:
@@ -352,9 +352,6 @@ class OrderViewSet(viewsets.ModelViewSet):
             return Response({'message': 'you do not have permission'}, status=status.HTTP_403_FORBIDDEN)
         else:
             if cancel_order(order.id):
-                if order.bill.payed:
-                    ### Find out transfer money to refund bill value for customer ###
-                    pass
                 subject = "Đơn hàng {0} của bạn đã bị hủy".format(order.id)
                 content = """
                     Người bán đã hủy đơn hàng {0} của bạn, nếu bạn sử dụng phương thức thanh toán trực tuyến bạn vui lòng 

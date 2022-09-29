@@ -185,7 +185,21 @@ def increase_unit_in_stock_when_cancel_order(order_id):
                 print(op.unit_in_stock)
         except:
             continue
-    return True
+    return 1
+
+@transaction.atomic
+def decrease_user_balance(user_id, value):
+    user = User.objects.select_for_update().get(pk=user_id)
+    user.balance = F('balance') - value
+    user.save()
+    return user
+
+@transaction.atomic
+def increase_user_balance(user_id, value):
+    user = User.objects.select_for_update().get(pk=user_id)
+    user.balance = F('balance') + value
+    user.save()
+    return user
 
 def cancel_order(order_id):
     try:
@@ -194,6 +208,8 @@ def cancel_order(order_id):
             order.status = 4
             order.save()
             increase_unit_in_stock_when_cancel_order(order.id)
+            if order.bill.payed:
+                increase_user_balance(order.customer.id, order.bill.value)
     except:
         return False
     else:
@@ -204,25 +220,21 @@ def recieve_order(order_id):
         with transaction.atomic():
             order = Order.objects.get(pk=order_id)
             order.status = 3
+            increase_user_balance(order.store.id, order.bill.value)
             order.save()
     except:
         return False
     else:
         return True
 
-def checkout_order(order_id, voucher_code=None, payment_type=0, status=1):
+def checkout_order(order_id, voucher_code=None, payment_type=0, raw_status=1):
     try:
         value = 0
+        status = raw_status
         with transaction.atomic():
             order = Order.objects.select_for_update().get(pk=order_id, status=0)
-            if payment_type == 0:
-                for i in order.orderdetail_set.all():
-                    decrease_option_unit_instock(i.id)
-            # update status
-            order.status = status
             order.payment_type = payment_type
-            order.save()
-    # calculate value to create bill
+
             voucher = None
             if voucher_code is not None:
                 voucher = Voucher.objects.filter(code=voucher_code)
@@ -230,14 +242,27 @@ def checkout_order(order_id, voucher_code=None, payment_type=0, status=1):
                 value = calculate_value(order_id=order.id, voucher_id=voucher[0].id)
                 if check_discount_in_order(order.orderdetail_set.all(), voucher[0].id) is not None:
                     order.voucher_apply = voucher[0]
-                    order.save()
             else:
                 value = calculate_value(order_id=order.id)
-            order.bill = Bill.objects.create(value=value, order_payed=order, customer=order.customer, payed=bool(status))
+            if payment_type == 2:
+                status = 1
+                if decrease_user_balance(order.customer.id, value) is None:
+                    raise Exception
+            order.bill = Bill.objects.create(value=value, order_payed=order, customer=order.customer,
+                                             payed=bool(status))
+
+            if payment_type != 1:
+                for i in order.orderdetail_set.all():
+                    decrease_option_unit_instock(i.id)
+            # update status
+            order.status = status
+            order.save()
+
     except:
         return None
-    order.refresh_from_db()
-    return order
+    else:
+        order.refresh_from_db()
+        return order
 
 @transaction.atomic
 def complete_checkout_orders_with_payment_gateway(order_ids):
