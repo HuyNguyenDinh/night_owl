@@ -49,16 +49,10 @@ class UserLessInformationSerializer(ModelSerializer):
 
 class UserCashinSerializer(ModelSerializer):
     amount = IntegerField(write_only=True, required=True, min_value=10000)
-
+    pay_url = CharField(read_only=True)
     class Meta:
         model = User
-        fields = ['id', 'first_name', 'last_name', 'phone_number', 'amount', 'balance']
-        extra_kwargs = {
-            "first_name": {"read_only": "true"},
-            "last_name": {"read_only": "true"},
-            "phone_number": {"read_only": "true"},
-            "balance": {"read_only": "true"}
-        }
+        fields = ['amount', 'pay_url']
 
 class CategorySerializer(ModelSerializer):
     class Meta:
