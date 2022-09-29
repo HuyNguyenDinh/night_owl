@@ -327,9 +327,7 @@ class OrderViewSet(viewsets.ModelViewSet):
             return Response({'message': 'order not approving'}, status=status.HTTP_406_NOT_ACCEPTABLE)
         if update_shipping_code(order_id=order.id):
             order.refresh_from_db()
-            subject = """
-                NightOwl - Đơn hàng {0} của bạn đang được vận chuyển
-            """.format(order.id)
+            subject = "NightOwl - Đơn hàng {0} của bạn đang được vận chuyển".format(order.id)
             content = """
                 Đơn hàng {0} đang được vận chuyển bởi người bán, quý khách vui lòng chờ shipper giao hàng tới nhé.
                 Hoặc bạn có thể kiểm tra tình trạng đơn hàng với mã đơn hàng là {1} được vận chuyển bởi đơn vị Giaohangnhanh.
@@ -337,7 +335,7 @@ class OrderViewSet(viewsets.ModelViewSet):
             """.format(order.id, order.shipping_code)
             x = Process(target=send_email, args=(order.customer.email, subject, content))
             x.start()
-            y = Process(target=send_sms, args=(order.customer, content))
+            y = Process(target=send_sms, args=(order.customer.phone_number, content))
             y.start()
             return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
         return Response({'message': 'failed to create shipping order'}, status=status.HTTP_400_BAD_REQUEST)
@@ -354,9 +352,10 @@ class OrderViewSet(viewsets.ModelViewSet):
             return Response({'message': 'you do not have permission'}, status=status.HTTP_403_FORBIDDEN)
         else:
             if cancel_order(order.id):
-                subject = """
-                    Đơn hàng {0} của bạn đã bị hủy
-                """.format(order.id)
+                if order.bill.payed:
+                    ### Find out transfer money to refund bill value for customer ###
+                    pass
+                subject = "Đơn hàng {0} của bạn đã bị hủy".format(order.id)
                 content = """
                     Người bán đã hủy đơn hàng {0} của bạn, nếu bạn sử dụng phương thức thanh toán trực tuyến bạn vui lòng 
                     kiểm tra lại tài khoản đã thanh toán {1}vnđ xem đã được hệ thống hoàn tiền lại hay chưa.
@@ -381,9 +380,7 @@ class OrderViewSet(viewsets.ModelViewSet):
             return Response({'message': 'you do not have permission'}, status=status.HTTP_403_FORBIDDEN)
         else:
             if receive_order(order.id):
-                subject = """
-                    Đơn hàng {0} đã được giao thành công
-                """.format(order.id)
+                subject = "Đơn hàng {0} đã được giao thành công".format(order.id)
                 content = """
                     Người mua đã nhận được đơn hàng {0} giá trị {1}vnđ , bạn vui lòng kiểm tra tình trạng đơn hàng. 
                     Nếu có sai sót bạn vui lòng gửi report cho dịch vụ hỗ trợ của Night Owl sớm nhất để được xử lý.
@@ -462,9 +459,9 @@ class MomoPayedView(APIView):
             instance = get_instance_from_signature_and_request_id(secret_link=secret_link, orderId=orderId, requestId=requestId)
             momo_order = check_momo_order_status(order_id=orderId, request_id=requestId)
             if instance and momo_order.get('amount') == amount == instance.get('amount') and momo_order.get('resultCode') == resultCode == 0:
-                    order_ids = instance.get('order_ids')
-                    if not complete_checkout_orders_with_payment_gateway(order_ids):
-                        x = Thread(target=momo_refund, args=(transId, amount, requestId))
-                        x.start()
+                order_ids = instance.get('order_ids')
+                if not complete_checkout_orders_with_payment_gateway(order_ids):
+                    x = Thread(target=momo_refund, args=(transId, amount, requestId))
+                    x.start()
         finally:
             return Response(status=status.HTTP_204_NO_CONTENT)
