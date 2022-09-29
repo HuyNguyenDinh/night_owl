@@ -41,6 +41,7 @@ class User(AbstractUser):
     phone_number = models.CharField(unique=True, blank=False, null=False, max_length=50)
     avatar = models.ImageField(upload_to='upload/%Y/%m', null=True, blank=True)
     verified = models.BooleanField(default=False)
+    balance = models.PositiveIntegerField(default=0, null=False, blank=False)
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []
@@ -116,7 +117,8 @@ class Order(models.Model):
 
     SHIPPING_CHOICES = (
         (0, 'COD'),
-        (1, 'OnlinePayment')
+        (1, 'OnlinePaymentWithMomo'),
+        (2, 'PaymentWithNightOwlAmount')
     )
     payment_type = models.IntegerField(choices=SHIPPING_CHOICES, default=0)
 
@@ -150,7 +152,6 @@ class Bill(models.Model):
     value = models.DecimalField(max_digits=20, decimal_places=2,validators=[MinValueValidator(0)], null=False, blank=False)
     date = models.DateTimeField(auto_now_add=True, blank=False, null=False)
     payed = models.BooleanField(default=False, null=False, blank=False)
-    payed_for_seller = models.BooleanField(default=False, null=False, blank=False)
     order_payed = models.OneToOneField(Order, on_delete=models.CASCADE, default=False)
     customer = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
 

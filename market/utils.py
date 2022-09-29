@@ -109,7 +109,9 @@ def create_shipping_order(order_id):
     seller = order.store
     customer = order.customer
     max_lwh = calculate_max_lwh(order_id=order.id)
-    value = order.bill.value
+    value = 0
+    if order.payment_type == 0:
+        value = order.bill.value
     service_type_id = 2
     services = json.loads(get_shipping_service(order.id))
     if services.get('code') == 200:
@@ -197,7 +199,7 @@ def cancel_order(order_id):
     else:
         return True
 
-def receive_order(order_id):
+def recieve_order(order_id):
     try:
         with transaction.atomic():
             order = Order.objects.get(pk=order_id)
@@ -290,12 +292,12 @@ def update_shipping_code(order_id):
             shipping_order = json.loads(create_shipping_order(order_id=order.id))
             if shipping_order.get('code') == 200:
                 data = shipping_order.get('data')
-                order.can_destroy = False
                 order.shipping_code = data.get('order_code')
                 order.total_shipping_fee = data.get('total_fee')
                 order.completed_date = shipping_order.get('expected_delivery_time')
-                order.status = 2
-                order.save()
+            order.can_destroy = False
+            order.status = 2
+            order.save()
     except:
         return False
     else:
@@ -326,8 +328,8 @@ def make_order_from_list_cart(list_cart_id, user_id, data):
                     result.append(order)
     return result
 
-def send_email(receiver, subject, content):
-    to = [receiver]
+def send_email(reciever, subject, content):
+    to = [reciever]
     send_subject = subject
     send_content = content
     return send_mail(send_subject, send_content, settings.EMAIL_HOST_USER, to, False)

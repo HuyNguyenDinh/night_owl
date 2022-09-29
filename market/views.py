@@ -304,7 +304,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                 for i in result:
                     odds = i.orderdetail_set.values_list('cart_id__id', flat=True)
                     CartDetail.objects.filter(id__in=list(set(odds))).delete()
-                if payment_type:
+                if payment_type and payment_type == 1:
                     list_id = [x.id for x in result]
                     instance = import_signature(list_id)
                     return Response({"message": "Please pay with the link to complete checkout the order",
@@ -368,8 +368,8 @@ class OrderViewSet(viewsets.ModelViewSet):
                 return Response({"message": "order canceled", "order_id": order.id}, status=status.HTTP_200_OK)
             return Response({"message": "can not cancel order"}, status=status.HTTP_400_BAD_REQUEST)
 
-    @action(methods=['get'], detail=True, url_path="receive_order")
-    def receive_order(self, request, pk):
+    @action(methods=['get'], detail=True, url_path="recieve_order")
+    def recieve_order(self, request, pk):
         try:
             order = Order.objects.get(pk=pk, status=2)
         except:
@@ -379,7 +379,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         except:
             return Response({'message': 'you do not have permission'}, status=status.HTTP_403_FORBIDDEN)
         else:
-            if receive_order(order.id):
+            if recieve_order(order.id):
                 subject = "Đơn hàng {0} đã được giao thành công".format(order.id)
                 content = """
                     Người mua đã nhận được đơn hàng {0} giá trị {1}vnđ , bạn vui lòng kiểm tra tình trạng đơn hàng. 
