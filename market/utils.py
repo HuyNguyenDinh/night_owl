@@ -177,12 +177,11 @@ def increase_unit_in_stock_when_cancel_order(order_id):
         try:
             with transaction.atomic():
                 op = Option.objects.select_for_update().get(id=odd.product_option.id)
-                print(op.unit_in_stock)
-                print(odd.quantity)
                 op.unit_in_stock = F('unit_in_stock') + odd.quantity
+                product = Product.objects.select_for_update().get(id=op.base_product.id)
+                product.sold_amount= F('sold_amount') - odd.quantity
+                product.save()
                 op.save()
-                print("increased unit")
-                print(op.unit_in_stock)
         except:
             continue
     return 1

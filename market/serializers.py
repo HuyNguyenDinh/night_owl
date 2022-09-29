@@ -1,6 +1,6 @@
 from dataclasses import field
 
-from rest_framework.serializers import  ModelSerializer, ReadOnlyField, ListField, IntegerField, SerializerMethodField, ImageField, CharField, DictField, Serializer, DecimalField
+from rest_framework.serializers import ModelSerializer, ReadOnlyField, ListField, IntegerField, SerializerMethodField, CharField, DictField
 
 from .models import *
 import cloudinary
@@ -46,6 +46,19 @@ class UserLessInformationSerializer(ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'first_name', 'last_name', 'phone_number', 'avatar']
+
+class UserCashinSerializer(ModelSerializer):
+    amount = IntegerField(write_only=True, required=True, min_value=10000)
+
+    class Meta:
+        model = User
+        fields = ['id', 'first_name', 'last_name', 'phone_number', 'amount', 'balance']
+        extra_kwargs = {
+            "first_name": {"read_only": "true"},
+            "last_name": {"read_only": "true"},
+            "phone_number": {"read_only": "true"},
+            "balance": {"read_only": "true"}
+        }
 
 class CategorySerializer(ModelSerializer):
     class Meta:

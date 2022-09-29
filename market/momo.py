@@ -18,6 +18,7 @@ partnerCode = "MOMO"
 accessKey = "F8BBA842ECF85"
 secretKey = "K951B6PE1waDMi640xX08PD3vg6EkVlz"
 secretLink = str(uuid.uuid4())
+
 def send_order(orders_id, redirect_url):
     orders = Order.objects.filter(pk__in=orders_id)
     raw_amount = list(orders.values_list('bill__value', flat=True))
@@ -68,7 +69,50 @@ def send_order(orders_id, redirect_url):
                              headers={'Content-Type': 'application/json', 'Content-Length': str(clen)})
     response_json = response.json()
 
-    res = dict(response_json, **{"secretLink": secretLink, "order_ids": order_ids})
+    res = dict(response_json, **{"secretLink": secretLink, "order_ids": order_ids, "type": 0})
+    return res
+
+def cashin_balance(user_id, raw_amount, redirect_url):
+    user = User.objects.get(pk=user_id)
+    endpoint = "https://test-payment.momo.vn/v2/gateway/api/create"
+    orderInfo = "Night Owl cashin"
+    redirectUrl = redirect_url
+    ipnUrl = "https://night-owl-market.herokuapp.com/market/momo-payed/" + secretLink + "/"
+    amount = str(raw_amount)
+    orderId = "Night_Owl:" + str(uuid.uuid4())
+    requestId = str(uuid.uuid4())
+    requestType = "captureWallet"
+    extraData = ""  # pass empty value or Encode base64 JsonString
+
+    rawSignature = "accessKey=" + accessKey + "&amount=" + amount + "&extraData=" + extraData + "&ipnUrl=" + ipnUrl + "&orderId=" + orderId + "&orderInfo=" + orderInfo + "&partnerCode=" + partnerCode + "&redirectUrl=" + redirectUrl + "&requestId=" + requestId + "&requestType=" + requestType
+
+    # puts raw signature
+    # signature
+    h = hmac.new(bytes(secretKey, 'ascii'), bytes(rawSignature, 'ascii'), hashlib.sha256)
+    signature = h.hexdigest()
+
+    data = {
+        'partnerCode': partnerCode,
+        'partnerName': "Test",
+        'storeId': "MomoTestStore",
+        'requestId': requestId,
+        'amount': amount,
+        'orderId': orderId,
+        'orderInfo': orderInfo,
+        'redirectUrl': redirectUrl,
+        'ipnUrl': ipnUrl,
+        'lang': "vi",
+        'extraData': extraData,
+        'requestType': requestType,
+        'signature': signature
+    }
+    loaded_data = json.dumps(data)
+    clen = len(data)
+    response = requests.post(endpoint, data=loaded_data,
+                             headers={'Content-Type': 'application/json', 'Content-Length': str(clen)})
+    response_json = response.json()
+
+    res = dict(response_json, **{"secretLink": secretLink, "user_id": user.id, "type": 1})
     return res
 
 def check_momo_order_status(order_id, request_id):

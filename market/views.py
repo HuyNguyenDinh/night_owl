@@ -19,7 +19,6 @@ from market.speedSMS import *
 class UserViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.UpdateAPIView):
     queryset = User.objects.filter(is_active=True)
     parser_classes = [MultiPartParser, JSONParser]
-    serializer_class = UserSerializer
     pagination_class = None
 
     def get_parsers(self):
@@ -28,12 +27,29 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.UpdateAPIVi
 
         return super().get_parsers()
 
+    def get_serializer_class(self):
+        if self.action == "balance_cashin":
+            return UserCashinSerializer
+        return UserSerializer
+
     @action(methods=['get'], detail=False, url_path='current-user')
     def get_current_user(self, request):
         current_user = User.objects.get(pk=request.user.id)
         if current_user:
             return Response(UserSerializer(current_user).data, status=status.HTTP_200_OK)
-        return Response({'message': "Current user not found"}, status = status.HTTP_404_NOT_FOUND)
+        return Response({'message': "Current user not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    @action(methods=['post'], detail=False, url_path='cashin')
+    def balance_cashin(self, request):
+        user = User.objects.get(pk=request.user.id)
+        amount = request.data.get("amount")
+        momo_collection = db_payment.momo
+        payment_result = cashin_balance(user.id, amount, "https://night-owl-market-fe.vercel.app/")
+        if payment_result and payment_result.get("resultCode") == 0:
+            momo_collection.insert_one(payment_result)
+            return Response({"message": "please go to the link below and pay for the order", "pay_url": payment_result.get("payUrl")}, status=status.HTTP_200_OK)
+        return Response({"message": "something wrong with momo order"}, status=status.HTTP_400_BAD_REQUEST)
+
 
     def get_permissions(self):
         if self.action == 'create':
@@ -335,8 +351,8 @@ class OrderViewSet(viewsets.ModelViewSet):
             """.format(order.id, order.shipping_code)
             x = Process(target=send_email, args=(order.customer.email, subject, content))
             x.start()
-            y = Process(target=send_sms, args=(order.customer.phone_number, content))
-            y.start()
+            # y = Process(target=send_sms, args=(order.customer.phone_number, content))
+            # y.start()
             return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
         return Response({'message': 'failed to create shipping order'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -360,8 +376,8 @@ class OrderViewSet(viewsets.ModelViewSet):
                 """.format(order.id, order.bill.value)
                 x = Process(target=send_email, args=(order.customer.email, subject, content))
                 x.start()
-                y = Process(target=send_sms, args=(order.customer.phone_number, content))
-                y.start()
+                # y = Process(target=send_sms, args=(order.customer.phone_number, content))
+                # y.start()
                 return Response({"message": "order canceled", "order_id": order.id}, status=status.HTTP_200_OK)
             return Response({"message": "can not cancel order"}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -385,8 +401,8 @@ class OrderViewSet(viewsets.ModelViewSet):
                 """.format(order.id, order.bill.value)
                 x = Process(target=send_email, args=(order.store.email, subject, content))
                 x.start()
-                y = Process(target=send_sms, args=(order.store.phone_number, content))
-                y.start()
+                # y = Process(target=send_sms, args=(order.store.phone_number, content))
+                # y.start()
                 return Response({'message': 'order completed'}, status=status.HTTP_200_OK)
             return Response({'message': 'something problem so we can not change the order status'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -456,9 +472,12 @@ class MomoPayedView(APIView):
             instance = get_instance_from_signature_and_request_id(secret_link=secret_link, orderId=orderId, requestId=requestId)
             momo_order = check_momo_order_status(order_id=orderId, request_id=requestId)
             if instance and momo_order.get('amount') == amount == instance.get('amount') and momo_order.get('resultCode') == resultCode == 0:
-                order_ids = instance.get('order_ids')
-                if not complete_checkout_orders_with_payment_gateway(order_ids):
-                    x = Thread(target=momo_refund, args=(transId, amount, requestId))
-                    x.start()
+                if instance.get("type") == 0:
+                    order_ids = instance.get('order_ids')
+                    if not complete_checkout_orders_with_payment_gateway(order_ids):
+                        x = Thread(target=momo_refund, args=(transId, amount, requestId))
+                        x.start()
+                else:
+                    increase_user_balance(instance.get("user_id", amount))
         finally:
             return Response(status=status.HTTP_204_NO_CONTENT)
