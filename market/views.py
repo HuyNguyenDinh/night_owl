@@ -478,6 +478,6 @@ class MomoPayedView(APIView):
                         x = Thread(target=momo_refund, args=(transId, amount, requestId))
                         x.start()
                 else:
-                    increase_user_balance(instance.get("user_id", amount))
+                    increase_user_balance(instance.get("user_id"), amount)
         finally:
             return Response(status=status.HTTP_204_NO_CONTENT)
