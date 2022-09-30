@@ -334,3 +334,6 @@ class GoogleTokenSerializer(Serializer):
     email = CharField(read_only=True)
     first_name = CharField(read_only=True)
     last_name = CharField(read_only=True)
+
+class VerifiedCodeSerializer(Serializer):
+    code = CharField(write_only=True, required=True)
