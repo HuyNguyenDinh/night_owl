@@ -42,7 +42,8 @@ class User(AbstractUser):
     email = models.EmailField(null=False, blank=False, unique=True)
     phone_number = models.CharField(unique=True, blank=False, null=False, max_length=50)
     avatar = models.ImageField(upload_to='upload/%Y/%m', null=True, blank=True)
-    verified = models.BooleanField(default=False)
+    email_verified = models.BooleanField(default=False)
+    phone_verified = models.BooleanField(default=False)
     balance = models.DecimalField(decimal_places=2, max_digits=20, validators=[MinValueValidator(decimal.Decimal('0.01'))])
 
     USERNAME_FIELD = 'email'

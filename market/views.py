@@ -36,6 +36,61 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.UpdateAPIVi
             return GoogleTokenSerializer
         return UserSerializer
 
+    @action(methods=['get'], detail=False, url_path='send-verified-code-to-email')
+    def send_verified_code_to_email(self, request):
+        user = User.objects.get(pk=request.user.id)
+        code = add_verified_code(user.id, True)
+        subject = "Xác nhận email đăng ký tài khoản tại Night Owl"
+        content = """
+            Xin chào {0}, mã xác minh email đăng ký tài khoản tại Night Owl của bạn là {1}.
+            Lưu ý: Mã xác minh chỉ có hiệu lực trong vòng 15 phút.
+        """.format(user.first_name, code)
+        send_email(user.email, subject, content)
+        return Response({"message": "verification code has been sent, please check your email to get the code"})
+
+    @action(methods=['get'], detail=False, url_path='send-verified-code-to-phone-number')
+    def send_verified_code_to_phone_number(self, request):
+        user = User.objects.get(pk=request.user.id)
+        code = add_verified_code(user.id, False)
+        content = """
+                    Xin chào {0}, mã xác minh số điện thoại đăng ký tài khoản tại Night Owl của bạn là {1}.
+                    Lưu ý: Mã xác minh chỉ có hiệu lực trong vòng 15 phút.
+                """.format(user.first_name, code)
+        send_sms(user.phone_number, content)
+        return Response({"message": "verification code has been sent, please check your email to get the code"})
+
+    @action(methods=['post'], detail=False, url_path='check-verified-code-to-email')
+    def check_verified_code_to_email(self, request):
+        code = request.data.get('code')
+        if check_verified_code(request.user.id, code, True):
+            try:
+                with transaction.atomic():
+                    user = User.objects.select_for_update().get(pk=request.user.id)
+                    user.email_verified = True
+                    user.save()
+            except:
+                return Response({"message": "something wrong, please contact customer support to help"}, status=status.HTTP_400_BAD_REQUEST)
+            else:
+                return Response({"message": "email verification successfull"}, status=status.HTTP_200_OK)
+        return Response({"message": "verification code was not correct"}, status=status.HTTP_406_NOT_ACCEPTABLE)
+
+    @action(methods=['post'], detail=False, url_path='check-verified-code-to-phone-number')
+    def check_verified_code_to_phone_number(self, request):
+        code = request.data.get('code')
+        if check_verified_code(request.user.id, code, False):
+            try:
+                with transaction.atomic():
+                    user = User.objects.select_for_update().get(pk=request.user.id)
+                    user.phone_verified = True
+                    user.save()
+            except:
+                return Response({"message": "something wrong, please contact customer support to help"},
+                                status=status.HTTP_400_BAD_REQUEST)
+            else:
+                return Response({"message": "phone number verification successfull"}, status=status.HTTP_200_OK)
+        return Response({"message": "verification code was not correct"}, status=status.HTTP_406_NOT_ACCEPTABLE)
+
+
     @action(methods=['get'], detail=False, url_path='current-user')
     def get_current_user(self, request):
         current_user = User.objects.get(pk=request.user.id)
@@ -170,10 +225,10 @@ class ProductViewSet(viewsets.ModelViewSet):
     @action(methods=['get'], detail=True, url_path='comments')
     def get_comments(self, request, pk):
         pd = Product.objects.get(pk=pk)
-        comments = Rating.objects.filter(product = pd)
+        comments = Rating.objects.filter(product=pd)
         if comments:
             return Response(RatingSerializer(comments, many=True).data, status=status.HTTP_200_OK)
-        return Response({'message': 'This product had no comment'}, status = status.HTTP_404_NOT_FOUND)
+        return Response({'message': 'This product had no comment'}, status=status.HTTP_404_NOT_FOUND)
 
     @action(methods=['post'], detail=True, url_path='add-comment')
     def add_comment(self, request, pk):
