@@ -1,6 +1,6 @@
 from dataclasses import field
 
-from rest_framework.serializers import ModelSerializer, ReadOnlyField, ListField, IntegerField, SerializerMethodField, CharField, DictField
+from rest_framework.serializers import ModelSerializer, ReadOnlyField, ListField, IntegerField, SerializerMethodField, CharField, DictField, Serializer
 
 from .models import *
 import cloudinary
@@ -329,3 +329,9 @@ class AddCartSerializer(ModelSerializer):
             'customer': {'read_only': 'true'},
             'product_option': {'read_only': 'true'},
         }
+
+class GoogleTokenSerializer(Serializer):
+    id_token = CharField(required=True, write_only=True)
+    email = CharField(read_only=True)
+    first_name = CharField(read_only=True)
+    last_name = CharField(read_only=True)

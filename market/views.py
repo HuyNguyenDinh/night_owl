@@ -14,6 +14,8 @@ from market.utils import *
 from .mongo_connect import *
 from multiprocessing import Process
 from market.speedSMS import *
+from market.googleInfo import *
+from rest_framework_simplejwt.tokens import RefreshToken
 # Create your views here.
 
 class UserViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.UpdateAPIView):
@@ -30,6 +32,8 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.UpdateAPIVi
     def get_serializer_class(self):
         if self.action == "balance_cashin":
             return UserCashinSerializer
+        elif self.action == "login_with_google":
+            return GoogleTokenSerializer
         return UserSerializer
 
     @action(methods=['get'], detail=False, url_path='current-user')
@@ -50,9 +54,32 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.UpdateAPIVi
             return Response({"message": "please go to the link below and pay for the order", "pay_url": payment_result.get("payUrl")}, status=status.HTTP_200_OK)
         return Response({"message": "something wrong with momo order"}, status=status.HTTP_400_BAD_REQUEST)
 
+    @action(methods=['post'], detail=False, url_path='login-with-google')
+    def login_with_google(self, request):
+        idToken = request.data.get('id_token')
+        if idToken:
+            user_info = get_user_info(idToken)
+            if user_info:
+                user_email = user_info.get('email')
+                try:
+                    user = User.objects.get(email=user_email)
+                except:
+                    user_first_name = user_info.get('given_name')
+                    user_last_name = user_info.get('family_name')
+                    return Response(GoogleTokenSerializer({"email": user_email, "first_name": user_first_name, "last_name": user_last_name}).data, status=status.HTTP_302_FOUND)
+                else:
+                    refresh = RefreshToken.for_user(user)
+                    return Response({
+                        'refresh': str(refresh),
+                        'access': str(refresh.access_token),
+                    }, status=status.HTTP_200_OK)
+            return Response({"message": "User's info not found"}, status=status.HTTP_404_NOT_FOUND)
+        return Response({"message": "id_token not found"}, status=status.HTTP_400_BAD_REQUEST)
+
+
 
     def get_permissions(self):
-        if self.action == 'create':
+        if self.action in ['create', 'login_with_google']:
             return [permissions.AllowAny(), ]
         return [permissions.IsAuthenticated(), ]
 
@@ -268,7 +295,11 @@ class OrderViewSet(viewsets.ModelViewSet):
         address = Address.objects.filter(creator=request.user)
         if not address.exists():
             return Response({'message': 'you need to add the address before make order'}, status=status.HTTP_400_BAD_REQUEST)
-        print(request.user.address)
+
+        order = Order.objects.filter(customer=request.user.id, status=0)
+        if order:
+            order.delete()
+
         list_cart = request.data.get('list_cart')
         if list_cart:
             result = make_order_from_list_cart(list_cart_id=list_cart, user_id=request.user.id, data=request.data)
