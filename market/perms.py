@@ -6,7 +6,7 @@ class BusinessPermission(permissions.BasePermission):
 
 class VerifiedUserPermission(permissions.BasePermission):
     def has_permission(self, request, view):
-        return bool(request.user and request.user.is_authenticated and request.user.verified)
+        return bool(request.user and request.user.is_authenticated and request.user.email_verified and request.user.phone_verified)
 
 class IsOwner(permissions.BasePermission):
     """
