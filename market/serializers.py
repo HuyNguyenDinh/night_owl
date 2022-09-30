@@ -8,7 +8,6 @@ import cloudinary.uploader
 from django.db.models import Sum, F
 import decimal
 from drf_extra_fields.fields import Base64ImageField
-from django.db import transaction
 
 
 class AddressSerializer(ModelSerializer):
