@@ -16,6 +16,7 @@ from multiprocessing import Process
 from market.speedSMS import *
 from market.googleInfo import *
 from rest_framework_simplejwt.tokens import RefreshToken
+from drf_yasg.utils import swagger_auto_schema
 # Create your views here.
 
 class UserViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.UpdateAPIView):
@@ -34,30 +35,133 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.UpdateAPIVi
             return UserCashinSerializer
         elif self.action == "login_with_google":
             return GoogleTokenSerializer
+        elif self.action in ['check_verified_code_to_email', 'check_verified_code_to_phone_number']:
+            return VerifiedCodeSerializer
+        elif self.action in ['send_verified_code_to_email', 'send_verified_code_to_phone_number']:
+            return MessageSerializer
+        elif self.action == "reset_password":
+            return ResetPasswordSerialier
+        elif self.action == "change_password":
+            return ChangePasswordSerializer
+        elif self.action == "get_token_by_user_id_and_reset_code":
+            return GetTokenWithUserIdAndCodeSerializer
+        elif self.action == "send_reset_code_to_email":
+            return UserIdSerializer
         return UserSerializer
+
+    @action(methods=['post'], detail=False, url_path='change_password')
+    def change_password(self, request):
+        current_password = request.data.get('current_password')
+        new_password = request.data.get('new_password')
+        confirm_password = request.data.get('confirm_password')
+        if not current_password or not new_password or not confirm_password:
+            return Response({"message": "current password, new password and confirm password are required"}, status=status.HTTP_406_NOT_ACCEPTABLE)
+        if new_password != confirm_password:
+            return Response({"message": "new password and confirm password are not the same"}, status=status.HTTP_406_NOT_ACCEPTABLE)
+        try:
+            with transaction.atomic():
+                user = User.objects.select_for_update().get(pk=request.user.id)
+                if user.check_password(current_password):
+                    user.set_password(new_password)
+                    user.save()
+                else:
+                    raise Exception
+        except:
+            return Response({"message": "current password not correct or new password not match require case"}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+        else:
+            return Response({"message": "change password successful"}, status=status.HTTP_200_OK)
+
+    @action(methods=['post'], detail=False, url_path='get-user-id-with-email')
+    def get_user_id_with_email(self, request):
+        email = request.data.get("email")
+        try:
+            user = User.objects.get(email=email)
+        except:
+            return Response({"message": "user not found"}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            return Response(EmailSerializer({"user_id": user.id}).data, status=status.HTTP_200_OK)
+
+    @action(methods=['post'], detail=False, url_path='send-reset-code-to-email')
+    def send_reset_code_to_email(self, request):
+        user_id = request.data.get('user_id')
+        if not user_id:
+            return Response({"message": "user_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            user = User.objects.get(pk=user_id)
+            code = add_reset_code(user.id)
+            subject = "Xác nhận reset mật khẩu của {0} Night Owl ECommerce".format(user.first_name)
+            content = """
+                Mã xác minh để reset mật khẩu Night Owl ECommerce của {0} là {1}
+            """.format(user.first_name, code)
+            send_email(user.email, subject, content)
+        except:
+            return Response({"message": "user not found"}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            return Response({"message": "reset code has been sent to your email"}, status=status.HTTP_200_OK)
+
+    @action(methods=['post'], detail=False, url_path='get-token-by-user-id-and-reset-code')
+    def get_token_by_user_id_and_reset_code(self, request):
+        user_id = request.data.get('user_id')
+        code = request.data.get('code')
+        if check_reset_code(user_id, code):
+            user = User.objects.get(pk=user_id)
+            refresh = RefreshToken.for_user(user)
+            return Response({
+                'refresh': str(refresh),
+                'access': str(refresh.access_token),
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response({"message": "verification code was not correct"}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(methods=['post'], detail=False, url_path='reset-password')
+    def reset_password(self, request):
+        try:
+            User.objects.get(pk=request.user.id)
+        except:
+            return Response({"message": "user not found"}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            new_password = request.data.get('new_password')
+            confirm_password = request.data.get('confirm_password')
+            if not new_password or not confirm_password:
+                return Response({"message": 'new password and confirm password are required'}, status=status.HTTP_400_BAD_REQUEST)
+            if new_password != confirm_password:
+                return Response({"message": "new password and confirm password not the same"}, status=status.HTTP_406_NOT_ACCEPTABLE)
+            try:
+                with transaction.atomic():
+                    user_change = User.objects.select_for_update().get(pk=request.user.id)
+                    user_change.set_password(new_password)
+                    user_change.save()
+            except:
+                return Response({"message": "new password not match the requirement case"}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+            else:
+                return Response({"message": "reset password successful"}, status=status.HTTP_200_OK)
 
     @action(methods=['get'], detail=False, url_path='send-verified-code-to-email')
     def send_verified_code_to_email(self, request):
-        user = User.objects.get(pk=request.user.id)
-        code = add_verified_code(user.id, True)
-        subject = "Xác nhận email đăng ký tài khoản tại Night Owl"
-        content = """
-            Xin chào {0}, mã xác minh email đăng ký tài khoản tại Night Owl của bạn là {1}.
-            Lưu ý: Mã xác minh chỉ có hiệu lực trong vòng 15 phút.
-        """.format(user.first_name, code)
-        send_email(user.email, subject, content)
-        return Response({"message": "verification code has been sent, please check your email to get the code"})
+        user = User.objects.get(pk=request.user.id, email_verified=False)
+        if user:
+            code = add_verified_code(user.id, True)
+            subject = "Xác nhận email đăng ký tài khoản tại Night Owl"
+            content = """
+                Xin chào {0}, mã xác minh email đăng ký tài khoản tại Night Owl của bạn là {1}.
+                Lưu ý: Mã xác minh chỉ có hiệu lực trong vòng 15 phút.
+            """.format(user.first_name, code)
+            send_email(user.email, subject, content)
+            return Response({"message": "verification code has been sent, please check your email to get the code"})
+        return Response({'message': "user not found"}, status=status.HTTP_404_NOT_FOUND)
 
     @action(methods=['get'], detail=False, url_path='send-verified-code-to-phone-number')
     def send_verified_code_to_phone_number(self, request):
-        user = User.objects.get(pk=request.user.id)
-        code = add_verified_code(user.id, False)
-        content = """
-                    Xin chào {0}, mã xác minh số điện thoại đăng ký tài khoản tại Night Owl của bạn là {1}.
-                    Lưu ý: Mã xác minh chỉ có hiệu lực trong vòng 15 phút.
-                """.format(user.first_name, code)
-        send_sms(user.phone_number, content)
-        return Response({"message": "verification code has been sent, please check your email to get the code"})
+        user = User.objects.get(pk=request.user.id, phone_verified=False)
+        if user:
+            code = add_verified_code(user.id, False)
+            content = """
+                        Xin chào {0}, mã xác minh số điện thoại đăng ký tài khoản tại Night Owl của bạn là {1}.
+                        Lưu ý: Mã xác minh chỉ có hiệu lực trong vòng 15 phút.
+                    """.format(user.first_name, code)
+            send_sms(user.phone_number, content)
+            return Response({"message": "verification code has been sent, please check your email to get the code"})
+        return Response({'message': "user not found"}, status=status.HTTP_404_NOT_FOUND)
 
     @action(methods=['post'], detail=False, url_path='check-verified-code-to-email')
     def check_verified_code_to_email(self, request):
@@ -71,7 +175,7 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.UpdateAPIVi
             except:
                 return Response({"message": "something wrong, please contact customer support to help"}, status=status.HTTP_400_BAD_REQUEST)
             else:
-                return Response({"message": "email verification successfull"}, status=status.HTTP_200_OK)
+                return Response({"message": "email verification successful"}, status=status.HTTP_200_OK)
         return Response({"message": "verification code was not correct"}, status=status.HTTP_406_NOT_ACCEPTABLE)
 
     @action(methods=['post'], detail=False, url_path='check-verified-code-to-phone-number')
@@ -87,7 +191,7 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.UpdateAPIVi
                 return Response({"message": "something wrong, please contact customer support to help"},
                                 status=status.HTTP_400_BAD_REQUEST)
             else:
-                return Response({"message": "phone number verification successfull"}, status=status.HTTP_200_OK)
+                return Response({"message": "phone number verification successful"}, status=status.HTTP_200_OK)
         return Response({"message": "verification code was not correct"}, status=status.HTTP_406_NOT_ACCEPTABLE)
 
 
@@ -131,10 +235,8 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.UpdateAPIVi
             return Response({"message": "User's info not found"}, status=status.HTTP_404_NOT_FOUND)
         return Response({"message": "id_token not found"}, status=status.HTTP_400_BAD_REQUEST)
 
-
-
     def get_permissions(self):
-        if self.action in ['create', 'login_with_google']:
+        if self.action in ['create', 'login_with_google', "send_reset_code_to_email", "get_user_id_with_email"]:
             return [permissions.AllowAny(), ]
         return [permissions.IsAuthenticated(), ]
 

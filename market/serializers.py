@@ -1,6 +1,6 @@
 from dataclasses import field
 
-from rest_framework.serializers import ModelSerializer, ReadOnlyField, ListField, IntegerField, SerializerMethodField, CharField, DictField, Serializer
+from rest_framework.serializers import ModelSerializer, ReadOnlyField, ListField, IntegerField, SerializerMethodField, CharField, DictField, Serializer, EmailField
 
 from .models import *
 import cloudinary
@@ -338,3 +338,25 @@ class GoogleTokenSerializer(Serializer):
 
 class VerifiedCodeSerializer(Serializer):
     code = CharField(write_only=True, required=True)
+
+class EmailSerializer(Serializer):
+    email = EmailField(write_only=True, required=True)
+    user_id = IntegerField(read_only=True)
+
+class MessageSerializer(Serializer):
+    message = CharField(read_only=True)
+
+class GetTokenWithUserIdAndCodeSerializer(Serializer):
+    user_id = IntegerField(write_only=True, required=True)
+    code = CharField(write_only=True, required=True)
+
+class UserIdSerializer(Serializer):
+    user_id = IntegerField(write_only=True, required=True)
+class ResetPasswordSerialier(Serializer):
+    new_password = CharField(write_only=True, required=True)
+    confirm_password = CharField(write_only=True, required=True)
+
+class ChangePasswordSerializer(Serializer):
+    current_password = CharField(write_only=True, required=True)
+    new_password = CharField(write_only=True, required=True)
+    confirm_password = CharField(write_only=True, required=True)
