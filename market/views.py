@@ -7,7 +7,7 @@ from .models import *
 from .serializers import *
 from .perms import *
 from .paginations import *
-from django.db.models import Q
+from django.db.models import Q, Sum, Count
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
 from market.utils import *
@@ -16,7 +16,7 @@ from multiprocessing import Process
 from market.speedSMS import *
 from market.googleInfo import *
 from rest_framework_simplejwt.tokens import RefreshToken
-from drf_yasg.utils import swagger_auto_schema
+from django.utils import timezone
 # Create your views here.
 
 class UserViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.UpdateAPIView):
@@ -48,6 +48,15 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.UpdateAPIVi
         elif self.action == "send_reset_code_to_email":
             return UserIdSerializer
         return UserSerializer
+
+    @action(methods=['get'], detail=True, url_path='products')
+    def product_of_user(self, request, pk):
+        try:
+            user = User.objects.get(pk=pk)
+        except:
+            return Response({"message": "user not found"}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            return Response(ProductOfUserSerializer(user).data, status=status.HTTP_200_OK)
 
     @action(methods=['post'], detail=False, url_path='change_password')
     def change_password(self, request):
@@ -236,7 +245,7 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.UpdateAPIVi
         return Response({"message": "id_token not found"}, status=status.HTTP_400_BAD_REQUEST)
 
     def get_permissions(self):
-        if self.action in ['create', 'login_with_google', "send_reset_code_to_email", "get_user_id_with_email"]:
+        if self.action in ['create', 'login_with_google', "send_reset_code_to_email", "get_user_id_with_email", 'product_of_user']:
             return [permissions.AllowAny(), ]
         return [permissions.IsAuthenticated(), ]
 
@@ -369,6 +378,179 @@ class ProductViewSet(viewsets.ModelViewSet):
             return Response(OptionSerializer(options, many=True).data, status=status.HTTP_200_OK)
         return Response(status=status.HTTP_404_NOT_FOUND)
 
+    @action(methods=['get'], detail=False, url_path='products-statistic-count-in-year')
+    def products_statistic_in_year(self, request):
+        try:
+            user = User.objects.get(pk=request.user.id)
+        except:
+            return Response({"message": "user not found"}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            year = request.query_params.get('year')
+            order_details = OrderDetail.objects.filter(order__store=user)
+            if year:
+                try:
+                    year = int(year)
+                except:
+                    return Response({"message": "month parameter was wrong format it must be [0-12]"})
+                else:
+                    order_details = order_details.filter(order__order_date__year=year)
+            else:
+                order_details = order_details.filter(order__order_date__year=timezone.now().year)
+            if order_details:
+                product_count_weekday = order_details.values('order__order_date__week_day') \
+                    .annotate(total_product_count=Sum('quantity'))
+                product_count_week = order_details.values('order__order_date__week') \
+                    .annotate(total_product_count=Sum('quantity'))
+                product_count_month = order_details.values('order__order_date__month')\
+                    .annotate(total_product_count=Sum('quantity'))
+                total_quantity_count = order_details.aggregate(total_quantity_count=Sum('quantity')).get(
+                    'total_quantity_count')
+                total_product_count = order_details.aggregate(
+                    total_count=Count('product_option__base_product__id')).get('total_count')
+                return Response({
+                    "product_count_weekday": list(product_count_weekday),
+                    "product_count_week": list(product_count_week),
+                    "product_count_month": list(product_count_month),
+                    "total_quantity_count": total_quantity_count,
+                    "total_product_count": total_product_count
+                }, status=status.HTTP_200_OK)
+            return Response({"message": "order details not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    @action(methods=['get'], detail=False, url_path='products-statistic-count-in-month')
+    def monthly_statistic_products_count(self, request):
+        try:
+            user = User.objects.get(pk=request.user.id)
+        except:
+            return Response({"message": "user not found"}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            month = request.query_params.get('month')
+            year = request.query_params.get('year')
+            order_details = OrderDetail.objects.filter(order__store=user)
+            if month:
+                try:
+                    month = int(month)
+                except:
+                    return Response({"message": "month parameter was wrong format it must be [0-12]"})
+                else:
+                    order_details = order_details.filter(order__order_date__month=month)
+            else:
+                order_details = order_details.filter(order__order_date__month=timezone.now().month)
+            if year:
+                try:
+                    year = int(year)
+                except:
+                    return Response({"message": "month parameter was wrong format it must be [0-12]"})
+                else:
+                    order_details = order_details.filter(order__order_date__year=year)
+            else:
+                order_details = order_details.filter(order__order_date__year=timezone.now().year)
+            if order_details:
+                product_count_weekday = order_details.values('order__order_date__week_day')\
+                    .annotate(total_product_count=Sum('quantity'))
+                product_count_week = order_details.values('order__order_date__week')\
+                    .annotate(total_product_count=Sum('quantity'))
+                product_count_day = order_details.values('order__order_date__day')\
+                    .annotate(total_product_count=Sum('quantity'))
+                total_quantity_count = order_details.aggregate(total_quantity_count=Sum('quantity')).get('total_quantity_count')
+                total_product_count = order_details.aggregate(total_count=Count('product_option__base_product__id')).get('total_count')
+                return Response({
+                    "product_count_weekday": list(product_count_weekday),
+                    "product_count_week": list(product_count_week),
+                    "product_count_day": list(product_count_day),
+                    "total_quantity_count": total_quantity_count,
+                    "total_product_count": total_product_count
+                }, status=status.HTTP_200_OK)
+            return Response({"message": "order details not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    @action(methods=['get'], detail=True, url_path='product-statistic-in-month')
+    def product_statistic_in_month(self, request, pk):
+        try:
+            user = User.objects.get(pk=request.user.id)
+        except:
+            return Response({"message": "user not found"}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            try:
+                product = Product.objects.get(pk=pk)
+            except:
+                return Response({"message": "product not found"}, status=status.HTTP_404_NOT_FOUND)
+            else:
+                month = request.query_params.get('month')
+                year = request.query_params.get('year')
+                order_details = OrderDetail.objects.filter(order__store=user, product_option__base_product=product)
+                if month:
+                    try:
+                        month = int(month)
+                    except:
+                        return Response({"message": "month parameter was wrong format it must be [0-12]"})
+                    else:
+                        order_details = order_details.filter(order__order_date__month=month)
+                else:
+                    order_details = order_details.filter(order__order_date__month=timezone.now().month)
+                if year:
+                    try:
+                        year = int(year)
+                    except:
+                        return Response({"message": "month parameter was wrong format it must be [0-12]"})
+                    else:
+                        order_details = order_details.filter(order__order_date__year=year)
+                else:
+                    order_details = order_details.filter(order__order_date__year=timezone.now().year)
+                if order_details:
+                    product_count_weekday = order_details.values('order__order_date__week_day') \
+                        .annotate(total_product_count=Sum('quantity'))
+                    product_count_week = order_details.values('order__order_date__week') \
+                        .annotate(total_product_count=Sum('quantity'))
+                    product_count_day = order_details.values('order__order_date__day') \
+                        .annotate(total_product_count=Sum('quantity'))
+                    total_quantity_count = order_details.aggregate(total_quantity_count=Sum('quantity')).get(
+                        'total_quantity_count')
+                    return Response({
+                        "product_count_weekday": list(product_count_weekday),
+                        "product_count_week": list(product_count_week),
+                        "product_count_day": list(product_count_day),
+                        "total_quantity_count": total_quantity_count
+                    }, status=status.HTTP_200_OK)
+                return Response({"message": "order details not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    @action(methods=['get'], detail=True, url_path='product-statistic-in-year')
+    def product_statistic_in_year(self, request, pk):
+        try:
+            user = User.objects.get(pk=request.user.id)
+        except:
+            return Response({"message": "user not found"}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            try:
+                product = Product.objects.get(pk=pk)
+            except:
+                return Response({"message": "product not found"}, status=status.HTTP_404_NOT_FOUND)
+            else:
+                year = request.query_params.get('year')
+                order_details = OrderDetail.objects.filter(order__store=user, product_option__base_product=product)
+            if year:
+                try:
+                    year = int(year)
+                except:
+                    return Response({"message": "month parameter was wrong format it must be [0-12]"})
+                else:
+                    order_details = order_details.filter(order__order_date__year=year)
+            else:
+                order_details = order_details.filter(order__order_date__year=timezone.now().year)
+            if order_details:
+                product_count_weekday = order_details.values('order__order_date__week_day') \
+                    .annotate(total_product_count=Sum('quantity'))
+                product_count_week = order_details.values('order__order_date__week') \
+                    .annotate(total_product_count=Sum('quantity'))
+                product_count_day = order_details.values('order__order_date__day') \
+                    .annotate(total_product_count=Sum('quantity'))
+                total_quantity_count = order_details.aggregate(total_quantity_count=Sum('quantity')).get(
+                    'total_quantity_count')
+                return Response({
+                    "product_count_weekday": list(product_count_weekday),
+                    "product_count_week": list(product_count_week),
+                    "product_count_day": list(product_count_day),
+                    "total_quantity_count": total_quantity_count
+                }, status=status.HTTP_200_OK)
+            return Response({"message": "order details not found"}, status=status.HTTP_404_NOT_FOUND)
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
@@ -397,23 +579,26 @@ class OptionViewSet(viewsets.ViewSet, generics.UpdateAPIView, generics.DestroyAP
     
     @action(methods=['post'], detail=True, url_path='add-to-cart')
     def add_to_cart(self, request, pk):
-        op = Option.objects.get(pk=pk)
-        cart = CartSerializer(data=request.data)
-        if cart.is_valid(raise_exception=True):
-            try:
-                cart.save(customer=request.user, product_option=op)
-            except:
-                quantity = cart.validated_data.get('quantity')
-                with transaction.atomic():
-                    cart_exist = CartDetail.objects.select_for_update().get(customer=request.user, product_option=op)
-                    cart_exist.quantity = F('quantity') + quantity
-                    cart_exist.save()
-                cart_exist = CartDetail.objects.get(customer=request.user, product_option=op)
-                return Response(CartSerializer(cart_exist).data)
-            else:
-                return Response(cart.data)
-        return Response({'message': 'cannot add product to your cart'}, status=status.HTTP_400_BAD_REQUEST)
-        
+        try:
+            op = Option.objects.exclude(base_product__owner_id=request.user.id).get(pk=pk)
+        except:
+            return Response({"message": "option not found or you are the product owner"}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            cart = CartSerializer(data=request.data)
+            if cart.is_valid(raise_exception=True):
+                try:
+                    cart.save(customer=request.user, product_option=op)
+                except:
+                    quantity = cart.validated_data.get('quantity')
+                    with transaction.atomic():
+                        cart_exist = CartDetail.objects.select_for_update().get(customer=request.user, product_option=op)
+                        cart_exist.quantity = F('quantity') + quantity
+                        cart_exist.save()
+                    cart_exist = CartDetail.objects.get(customer=request.user, product_option=op)
+                    return Response(CartSerializer(cart_exist).data)
+                else:
+                    return Response(cart.data)
+            return Response({'message': 'cannot add product to your cart'}, status=status.HTTP_400_BAD_REQUEST)
 
 class OrderViewSet(viewsets.ModelViewSet):
     pagination_class = OrderPagination
@@ -595,7 +780,7 @@ class OrderViewSet(viewsets.ModelViewSet):
             return Response({'message': 'something problem so we can not change the order status'}, status=status.HTTP_400_BAD_REQUEST)
 
 
-class OrderDetailViewSet(viewsets.ModelViewSet):
+class OrderDetailViewSet(viewsets.ViewSet, generics.ListAPIView):
     serializer_class = OrderDetailSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -612,6 +797,89 @@ class BillViewSet(viewsets.ViewSet, generics.ListAPIView):
     serializer_class = BillSerializer
     pagination_class = ProductPagination
     permission_classes = [permissions.IsAuthenticated]
+
+    def get_permissions(self):
+        if self.action in ['monthly_statistic', ]:
+            return [BusinessPermission(),]
+        return super().get_permissions()
+
+    @action(methods=['get'], detail=False, url_path='yearly-value-statistic')
+    def yearly_statistic(self, request):
+        try:
+            user = User.objects.get(pk=request.user.id)
+        except:
+            return Response({"message": "user not found"}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            year = request.query_params.get('year')
+            order = Order.objects.exclude(status=0).filter(store__id=user.id)
+            if year:
+                try:
+                    year = int(year)
+                except:
+                    return Response({"message": "year parameter was wrong format"}, status=status.HTTP_400_BAD_REQUEST)
+                else:
+                    order = order.filter(order_date__year=year)
+            else:
+                order = order.filter(order_date__year=timezone.now().year)
+            if order:
+                order_weekday = order.values('order_date__week_day').annotate(total_value=Sum('bill__value'), total_count=Count('id'))
+                order_week = order.values('order_date__week').annotate(total_value=Sum('bill__value'), total_count=Count('id'))
+                order_month = order.values('order_date__month').annotate(total_value=Sum('bill__value'),
+                                                                         total_count=Count('id'))
+                total_order_value = order.aggregate(total_value=Sum('bill__value')).get('total_value')
+                return Response({
+                    "weekday": list(order_weekday),
+                    "week": list(order_week),
+                    "month": list(order_month),
+                    "orders_total_value": total_order_value,
+                    "orders_total_count": order.count()
+                }, status=status.HTTP_200_OK)
+            return Response({"message": "orders not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    @action(methods=['get'], detail=False, url_path='monthly-value-statistic')
+    def monthly_statistic(self, request):
+        try:
+            user = User.objects.get(pk=request.user.id)
+        except:
+            return Response({"message": "user not found"}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            month = request.query_params.get('month')
+            year = request.query_params.get('year')
+            order = Order.objects.exclude(status=0).filter(store__id=user.id)
+            if year:
+                try:
+                    year = int(year)
+                except:
+                    return Response({"message": "year parameter was wrong format"}, status=status.HTTP_400_BAD_REQUEST)
+                else:
+                    order = order.filter(order_date__year=year)
+            else:
+                order = order.filter(order_date__year=timezone.now().year)
+            if month:
+                try:
+                    month = int(month)
+                except:
+                    return Response({"message": "month parameter was wrong format"}, status=status.HTTP_400_BAD_REQUEST)
+                order = order.filter(order_date__month=month)
+            else:
+                order = order.filter(order_date__month=timezone.now().month)
+            if order:
+                order_weekday = order.values('order_date__week_day').annotate(total_value=Sum('bill__value'),
+                                                                              total_count=Count('id'))
+                order_week = order.values('order_date__week').annotate(total_value=Sum('bill__value'),
+                                                                       total_count=Count('id'))
+                order_day = order.values('order_date__day').annotate(total_value=Sum('bill__value'),
+                                                                       total_count=Count('id'))
+                total_order_value = order.aggregate(total_value=Sum('bill__value')).get('total_value')
+                return Response({
+                    "weekday": list(order_weekday),
+                    "week": list(order_week),
+                    "day": list(order_day),
+                    "orders_total_value": total_order_value,
+                    "orders_total_count": order.count()
+                }, status=status.HTTP_200_OK)
+            return Response({"message": "orders not found"}, status=status.HTTP_404_NOT_FOUND)
+
 
 class VoucherViewSet(viewsets.ModelViewSet):
     queryset = Voucher.objects.all()
@@ -655,7 +923,7 @@ class MomoPayedView(APIView):
             amount = request.data.get('amount')
 
         except:
-            print('No payload data')
+            pass
         else:
             instance = get_instance_from_signature_and_request_id(secret_link=secret_link, orderId=orderId, requestId=requestId)
             momo_order = check_momo_order_status(order_id=orderId, request_id=requestId)

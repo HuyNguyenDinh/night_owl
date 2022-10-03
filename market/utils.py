@@ -1,6 +1,6 @@
 from django.utils import timezone
 from market.models import *
-from django.db.models import Sum, F, Max
+from django.db.models import Sum, F, Max, Count
 from django.db import transaction
 import requests
 import json

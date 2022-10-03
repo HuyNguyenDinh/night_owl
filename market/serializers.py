@@ -360,3 +360,10 @@ class ChangePasswordSerializer(Serializer):
     current_password = CharField(write_only=True, required=True)
     new_password = CharField(write_only=True, required=True)
     confirm_password = CharField(write_only=True, required=True)
+
+class ProductOfUserSerializer(ModelSerializer):
+    product_set = ListProductSerializer(many=True)
+
+    class Meta:
+        model = User
+        fields = ['id', 'first_name', 'last_name', 'phone_number', 'avatar', 'product_set']
