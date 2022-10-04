@@ -47,6 +47,8 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.UpdateAPIVi
             return GetTokenWithUserIdAndCodeSerializer
         elif self.action == "send_reset_code_to_email":
             return UserIdSerializer
+        elif self.action == "create_single_chatroom":
+            return RoomSerializer
         return UserSerializer
 
     @action(methods=['get'], detail=True, url_path='products')
@@ -246,10 +248,25 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.UpdateAPIVi
 
     @action(methods=['get'], detail=True, url_path='single-chat')
     def create_single_chatroom(self, request, pk):
-        pass
+        try:
+            chat_user = User.objects.get(pk=pk)
+        except:
+            return Response({"message": "user not found"}, status=status.HTTP_404_NOT_FOUND)
+        try:
+            user = User.objects.get(pk=request.user.id)
+        except:
+            return Response({"message": "user not found"}, status=status.HTTP_403_FORBIDDEN)
+        single_room = Room.objects.filter(user=user, type=0).filter(user=chat_user).first()
+        if single_room:
+            return Response(RoomSerializer(single_room).data, status=status.HTTP_200_OK)
+        else:
+            single_room = Room.objects.create()
+            single_room.user.add(*[user, chat_user])
+            return Response(RoomSerializer(single_room).data, status=status.HTTP_201_CREATED)
 
     def get_permissions(self):
-        if self.action in ['create', 'login_with_google', "send_reset_code_to_email", "get_user_id_with_email", 'product_of_user']:
+        if self.action in ['create', 'login_with_google', "send_reset_code_to_email", "get_user_id_with_email",\
+                           'product_of_user']:
             return [permissions.AllowAny(), ]
         return [permissions.IsAuthenticated(), ]
 

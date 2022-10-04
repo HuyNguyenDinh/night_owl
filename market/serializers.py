@@ -1,5 +1,6 @@
 from django.forms import ValidationError
-from rest_framework.serializers import ModelSerializer, ReadOnlyField, ListField, IntegerField, SerializerMethodField, CharField, DictField, Serializer, EmailField
+from rest_framework.serializers import ModelSerializer, ReadOnlyField, ListField, IntegerField, SerializerMethodField,\
+    CharField, DictField, Serializer, EmailField
 
 from .models import *
 import cloudinary
@@ -330,11 +331,13 @@ class AddCartSerializer(ModelSerializer):
         }
 
 class RoomSerializer(ModelSerializer):
+    user = UserLessInformationSerializer(many=True, read_only=True)
     class Meta:
         model = Room
         fields = "__all__"
 
 class MessageSerialier(ModelSerializer):
+    user = UserLessInformationSerializer(many=True, read_only=True)
     class Meta:
         model = Message
         fields = "__all__"
