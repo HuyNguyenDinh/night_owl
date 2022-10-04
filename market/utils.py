@@ -70,7 +70,6 @@ def decrease_option_unit_instock(orderdetail_id):
     option.save()
     product = Product.objects.select_for_update().get(pk=option.base_product.id)
     product.sold_amount = product.sold_amount + odd.quantity
-    product.full_clean()
     product.save()
     option.refresh_from_db()
     return option
@@ -271,7 +270,7 @@ def checkout_order(order_id, voucher_code=None, payment_type=0, raw_status=1):
 def complete_checkout_orders_with_payment_gateway(order_ids):
     try:
         with transaction.atomic():
-            orders = Order.objects.select_for_update().filter(pk__in=order_ids,  status=0, payment_type=1)
+            orders = Order.objects.select_for_update().filter(pk__in=order_ids)
             if orders:
                 for order in orders:
                     for i in order.orderdetail_set.all():
