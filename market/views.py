@@ -932,7 +932,7 @@ class MomoPayedView(APIView):
             if instance and momo_order.get('amount') == amount == instance.get('amount') and momo_order.get('resultCode') == resultCode == 0:
                 if instance.get("type") == 0:
                     order_ids = instance.get('order_ids')
-                    if not complete_checkout_orders_with_payment_gateway(order_ids):
+                    if complete_checkout_orders_with_payment_gateway(order_ids) == False:
                         x = Thread(target=momo_refund, args=(transId, amount, requestId))
                         x.start()
                 else:
