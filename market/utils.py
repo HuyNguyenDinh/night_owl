@@ -172,8 +172,6 @@ def create_shipping_order(order_id):
 def increase_unit_in_stock_when_cancel_order(order_id):
     order = Order.objects.get(pk=order_id)
     for odd in order.orderdetail_set.all():
-        print(odd.id)
-        print(odd.product_option.id)
         try:
             with transaction.atomic():
                 op = Option.objects.select_for_update().get(id=odd.product_option.id)

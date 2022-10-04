@@ -580,10 +580,12 @@ class OptionViewSet(viewsets.ViewSet, generics.UpdateAPIView, generics.DestroyAP
     @action(methods=['post'], detail=True, url_path='add-to-cart')
     def add_to_cart(self, request, pk):
         try:
-            op = Option.objects.exclude(base_product__owner_id=request.user.id).get(pk=pk)
+            op = Option.objects.get(pk=pk)
         except:
-            return Response({"message": "option not found or you are the product owner"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"message": "option not found"}, status=status.HTTP_404_NOT_FOUND)
         else:
+            if op.base_product.owner.id == request.user.id:
+                return Response({"message": "you are the product owner"}, status=status.HTTP_406_NOT_ACCEPTABLE)
             cart = CartSerializer(data=request.data)
             if cart.is_valid(raise_exception=True):
                 try:
