@@ -189,8 +189,6 @@ def increase_unit_in_stock_when_cancel_order(order_id):
 @transaction.atomic
 def decrease_user_balance(user_id, value):
     user = User.objects.select_for_update().get(pk=user_id)
-    # if user.balance < value:
-    #     raise DatabaseError
     user.balance = user.balance - value
     user.full_clean()
     user.save()
@@ -249,7 +247,7 @@ def checkout_order(order_id, voucher_code=None, payment_type=0, raw_status=1):
             if payment_type == 2:
                 status = 1
                 if decrease_user_balance(order.customer.id, value) is None:
-                    raise Exception
+                    raise DatabaseError
             order.bill = Bill.objects.create(value=value, order_payed=order, customer=order.customer,
                                              payed=bool(status))
 

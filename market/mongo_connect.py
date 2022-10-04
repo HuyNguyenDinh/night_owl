@@ -22,7 +22,7 @@ def import_signature(order_ids):
     amount = []
     for order in orders:
         amount.append(order.bill.value)
-    payment_result = send_order(orders_id=order_ids, redirect_url="https://night-owl-market-fe.vercel.app/")
+    payment_result = send_order(orders_id=order_ids, redirect_url="https://night-owl-market-fe.vercel.app/payment")
     order_info = momo_collection.find_one({"order_ids": order_ids})
     if order_info:
         return momo_collection.find_one_and_update(order_info, {"$set": payment_result}, return_document=ReturnDocument.AFTER)

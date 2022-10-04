@@ -216,7 +216,7 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.UpdateAPIVi
         user = User.objects.get(pk=request.user.id)
         amount = request.data.get("amount")
         momo_collection = db_payment.momo
-        payment_result = cashin_balance(user.id, amount, "https://night-owl-market-fe.vercel.app/")
+        payment_result = cashin_balance(user.id, amount, "https://night-owl-market-fe.vercel.app/payment")
         if payment_result and payment_result.get("resultCode") == 0:
             momo_collection.insert_one(payment_result)
             return Response({"message": "please go to the link below and pay for the order", "pay_url": payment_result.get("payUrl")}, status=status.HTTP_200_OK)
