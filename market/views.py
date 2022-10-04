@@ -244,6 +244,10 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.UpdateAPIVi
             return Response({"message": "User's info not found"}, status=status.HTTP_404_NOT_FOUND)
         return Response({"message": "id_token not found"}, status=status.HTTP_400_BAD_REQUEST)
 
+    @action(methods=['get'], detail=True, url_path='single-chat')
+    def create_single_chatroom(self, request, pk):
+        pass
+
     def get_permissions(self):
         if self.action in ['create', 'login_with_google', "send_reset_code_to_email", "get_user_id_with_email", 'product_of_user']:
             return [permissions.AllowAny(), ]

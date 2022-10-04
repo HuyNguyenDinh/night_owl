@@ -186,6 +186,13 @@ class Room(models.Model):
     updated_date = models.DateTimeField(auto_now=True)
     user = models.ManyToManyField(User)
 
+    ROOMCHAT_CHOICES = (
+        (0, 'single'),
+        (1, 'group')
+    )
+
+    type = models.IntegerField(choices=ROOMCHAT_CHOICES, default=0)
+
 class Message(models.Model):
     content = models.TextField()
     room = models.ForeignKey(Room, on_delete=models.CASCADE)

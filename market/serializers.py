@@ -329,6 +329,16 @@ class AddCartSerializer(ModelSerializer):
             'product_option': {'read_only': 'true'},
         }
 
+class RoomSerializer(ModelSerializer):
+    class Meta:
+        model = Room
+        fields = "__all__"
+
+class MessageSerialier(ModelSerializer):
+    class Meta:
+        model = Message
+        fields = "__all__"
+
 class GoogleTokenSerializer(Serializer):
     id_token = CharField(required=True, write_only=True)
     email = CharField(read_only=True)
