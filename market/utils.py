@@ -1,4 +1,5 @@
 from django.utils import timezone
+from psycopg2 import DatabaseError
 from market.models import *
 from django.db.models import Sum, F, Max, Count
 from django.db import transaction
@@ -64,10 +65,12 @@ def calculate_value(order_id, voucher_id=None):
 def decrease_option_unit_instock(orderdetail_id):
     odd = OrderDetail.objects.get(pk=orderdetail_id)
     option = Option.objects.select_for_update().get(orderdetail__id=orderdetail_id)
-    option.unit_in_stock = F('unit_in_stock') - odd.quantity
+    option.unit_in_stock = option.unit_in_stock - odd.quantity
+    option.full_clean()
     option.save()
     product = Product.objects.select_for_update().get(pk=option.base_product.id)
-    product.sold_amount = F('sold_amount') + odd.quantity
+    product.sold_amount = product.sold_amount + odd.quantity
+    product.full_clean()
     product.save()
     option.refresh_from_db()
     return option
@@ -175,9 +178,9 @@ def increase_unit_in_stock_when_cancel_order(order_id):
         try:
             with transaction.atomic():
                 op = Option.objects.select_for_update().get(id=odd.product_option.id)
-                op.unit_in_stock = F('unit_in_stock') + odd.quantity
+                op.unit_in_stock = op.unit_in_stock + odd.quantity
                 product = Product.objects.select_for_update().get(id=op.base_product.id)
-                product.sold_amount= F('sold_amount') - odd.quantity
+                product.sold_amount= product.sold_amount - odd.quantity
                 product.save()
                 op.save()
         except:
@@ -187,14 +190,17 @@ def increase_unit_in_stock_when_cancel_order(order_id):
 @transaction.atomic
 def decrease_user_balance(user_id, value):
     user = User.objects.select_for_update().get(pk=user_id)
-    user.balance = F('balance') - value
+    # if user.balance < value:
+    #     raise DatabaseError
+    user.balance = user.balance - value
+    user.full_clean()
     user.save()
     return user
 
 @transaction.atomic
 def increase_user_balance(user_id, value):
     user = User.objects.select_for_update().get(pk=user_id)
-    user.balance = F('balance') + value
+    user.balance = user.balance + value
     user.save()
     return user
 
