@@ -180,3 +180,13 @@ class Voucher(models.Model):
     is_percentage = models.BooleanField(default=False)
     products = models.ManyToManyField(Product)
     creator = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+
+class Room(models.Model):
+    created_date = models.DateTimeField(auto_now_add=True)
+    updated_date = models.DateTimeField(auto_now=True)
+    user = models.ManyToManyField(User)
+
+class Message(models.Model):
+    content = models.TextField()
+    room = models.ForeignKey(Room, on_delete=models.CASCADE)
+    creator = models.ForeignKey(User, on_delete=models.CASCADE)
