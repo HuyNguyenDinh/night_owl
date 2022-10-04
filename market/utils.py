@@ -68,8 +68,8 @@ def decrease_option_unit_instock(orderdetail_id):
     option.unit_in_stock = option.unit_in_stock - odd.quantity
     option.full_clean()
     option.save()
-    product = Product.objects.select_for_update().get(pk=option.base_product.id)
-    product.sold_amount = product.sold_amount + odd.quantity
+    product = Product.objects.get(pk=option.base_product.id)
+    product.sold_amount = F('sold_amount') + odd.quantity
     product.save()
     option.refresh_from_db()
     return option
@@ -179,7 +179,8 @@ def increase_unit_in_stock_when_cancel_order(order_id):
                 op = Option.objects.select_for_update().get(id=odd.product_option.id)
                 op.unit_in_stock = op.unit_in_stock + odd.quantity
                 product = Product.objects.select_for_update().get(id=op.base_product.id)
-                product.sold_amount= product.sold_amount - odd.quantity
+                product.sold_amount = product.sold_amount - odd.quantity
+                product.full_clean()
                 product.save()
                 op.save()
         except:
@@ -230,6 +231,7 @@ def recieve_order(order_id):
 def checkout_order(order_id, voucher_code=None, payment_type=0, raw_status=1):
     try:
         value = 0
+        payed = False
         status = raw_status
         with transaction.atomic():
             order = Order.objects.select_for_update().get(pk=order_id, status=0)
@@ -248,8 +250,10 @@ def checkout_order(order_id, voucher_code=None, payment_type=0, raw_status=1):
                 status = 1
                 if decrease_user_balance(order.customer.id, value) is None:
                     raise DatabaseError
+            if payment_type in [1, 2]:
+                payed = True
             order.bill = Bill.objects.create(value=value, order_payed=order, customer=order.customer,
-                                             payed=bool(status))
+                                             payed=payed)
 
             if payment_type != 1:
                 for i in order.orderdetail_set.all():
