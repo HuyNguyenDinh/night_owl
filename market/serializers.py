@@ -21,7 +21,8 @@ class UserSerializer(ModelSerializer):
     cart_quantity = SerializerMethodField(method_name="count_cart_quantity", read_only=True)
     class Meta:
         model = User
-        fields = ['id', 'first_name', 'last_name', 'email', 'phone_number', 'is_staff', 'is_business', 'password', 'is_active', 'email_verified', 'phone_verified', 'provider', 'avatar', 'address', 'cart_quantity', 'balance']
+        fields = ['id', 'first_name', 'last_name', 'email', 'phone_number', 'is_staff', 'is_business', 'password', 'is_active',\
+                  'email_verified', 'phone_verified', 'provider', 'avatar', 'address', 'cart_quantity', 'balance']
         extra_kwargs = {
             'password': {'write_only': 'true'},
             'is_staff': {'read_only': 'true'},
@@ -54,6 +55,23 @@ class UserCashinSerializer(ModelSerializer):
         model = User
         fields = ['amount', 'pay_url']
 
+class UserAvatarSerializer(ModelSerializer):
+    image = Base64ImageField(allow_empty_file=False, required=True, write_only=True)
+
+    class Meta:
+        model = User
+        fields = ['id', 'first_name', 'last_name', 'phone_number', 'avatar', 'image']
+        extra_kwargs = {
+            'first_name': {'read_only': 'true'},
+            'last_name': {'read_only': 'true'},
+            'phone_number': {'read_only': 'true'},
+            'image': {'write_only': 'true'}
+        }
+    def update_avatar(self, instance, validated_data):
+        instance.avatar = validated_data.get('image')
+        instance.save()
+        return instance
+
 class CategorySerializer(ModelSerializer):
     class Meta:
         model = Category
@@ -72,7 +90,7 @@ class OptionPictureSerializer(ModelSerializer):
 class CreateOptionSerializer(ModelSerializer):
     picture_set = OptionPictureSerializer(many=True, read_only=True)
     uploaded_images = ListField(
-        child = Base64ImageField(allow_empty_file=False, required=True),
+        child=Base64ImageField(allow_empty_file=False, required=True),
         write_only = True,
         required=True
     )
@@ -87,7 +105,7 @@ class CreateOptionSerializer(ModelSerializer):
         uploaded_data = validated_data.pop('uploaded_images')
         option = Option.objects.create(**validated_data)
         for uploaded_item in uploaded_data:
-            new_product_image = Picture.objects.create(product_option = option, image = uploaded_item)
+            new_product_image = Picture.objects.create(product_option=option, image=uploaded_item)
         return option
 
 class OptionSerializer(ModelSerializer):
@@ -356,7 +374,7 @@ class RoomSerializer(ModelSerializer):
         return room
 
 class ChatRoomMessageSerialier(ModelSerializer):
-    creator = UserLessInformationSerializer(many=True, read_only=True)
+    creator = UserLessInformationSerializer(read_only=True)
     class Meta:
         model = Message
         fields = "__all__"

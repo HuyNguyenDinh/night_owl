@@ -1,3 +1,4 @@
+import firebase_admin.messaging
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, JSONParser
 from rest_framework.decorators import action
@@ -17,6 +18,8 @@ from market.speedSMS import *
 from market.googleInfo import *
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.utils import timezone
+from fcm_django.models import FCMDevice
+import firebase_admin.messaging
 # Create your views here.
 
 class UserViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.UpdateAPIView):
@@ -49,7 +52,20 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.UpdateAPIVi
             return UserIdSerializer
         elif self.action == "create_single_chatroom":
             return RoomSerializer
+        elif self.action == "change_avatar":
+            return UserAvatarSerializer
         return UserSerializer
+
+    @action(methods=['patch'], detail=False, url_path='change-avatar')
+    def change_avatar(self, request):
+        try:
+            user = User.objects.get(pk=request.user.id)
+        except:
+            return Response({"message": "user not found"}, status=status.HTTP_404_NOT_FOUND)
+        serializer = self.get_serializer(user, data=request.data)
+        if serializer.is_valid(raise_exception=True):
+            user = serializer.update_avatar(user, serializer.validated_data)
+        return Response(UserLessInformationSerializer(user).data)
 
     @action(methods=['get'], detail=True, url_path='products')
     def product_of_user(self, request, pk):
@@ -101,9 +117,7 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.UpdateAPIVi
             user = User.objects.get(pk=user_id)
             code = add_reset_code(user.id)
             subject = "Xác nhận reset mật khẩu của {0} Night Owl ECommerce".format(user.first_name)
-            content = """
-                Mã xác minh để reset mật khẩu Night Owl ECommerce của {0} là {1}
-            """.format(user.first_name, code)
+            content = """Mã xác minh để reset mật khẩu Night Owl ECommerce của {0} là {1}""".format(user.first_name, code)
             send_email(user.email, subject, content)
         except:
             return Response({"message": "user not found"}, status=status.HTTP_404_NOT_FOUND)
@@ -153,10 +167,8 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.UpdateAPIVi
         if user:
             code = add_verified_code(user.id, True)
             subject = "Xác nhận email đăng ký tài khoản tại Night Owl"
-            content = """
-                Xin chào {0}, mã xác minh email đăng ký tài khoản tại Night Owl của bạn là {1}.
-                Lưu ý: Mã xác minh chỉ có hiệu lực trong vòng 15 phút.
-            """.format(user.first_name, code)
+            content = """Xin chào {0}, mã xác minh email đăng ký tài khoản tại Night Owl của bạn là {1}.
+            Lưu ý: Mã xác minh chỉ có hiệu lực trong vòng 15 phút.""".format(user.first_name, code)
             send_email(user.email, subject, content)
             return Response({"message": "verification code has been sent, please check your email to get the code"})
         return Response({'message': "user not found"}, status=status.HTTP_404_NOT_FOUND)
@@ -736,11 +748,16 @@ class OrderViewSet(viewsets.ModelViewSet):
         if update_shipping_code(order_id=order.id):
             order.refresh_from_db()
             subject = "NightOwl - Đơn hàng {0} của bạn đang được vận chuyển".format(order.id)
-            content = """
-                Đơn hàng {0} đang được vận chuyển bởi người bán, quý khách vui lòng chờ shipper giao hàng tới nhé.
+            content = """Đơn hàng {0} đang được vận chuyển bởi người bán, quý khách vui lòng chờ shipper giao hàng tới nhé.
                 Hoặc bạn có thể kiểm tra tình trạng đơn hàng với mã đơn hàng là {1} được vận chuyển bởi đơn vị Giaohangnhanh.
-                Night Owl ECommerce xin cảm ơn quý khách đã tin tưởng lựa chọn.
-            """.format(order.id, order.shipping_code)
+                Night Owl ECommerce xin cảm ơn quý khách đã tin tưởng lựa chọn.""".format(order.id, order.shipping_code)
+            message = firebase_admin.messaging.Message(data={
+                "type": "1",
+                "state": "0",
+                "subject": subject,
+                "content": content
+            })
+            FCMDevice.objects.filter(user=order.customer).send_message(message)
             x = Process(target=send_email, args=(order.customer.email, subject, content))
             x.start()
             # y = Process(target=send_sms, args=(order.customer.phone_number, content))
@@ -761,11 +778,16 @@ class OrderViewSet(viewsets.ModelViewSet):
         else:
             if cancel_order(order.id):
                 subject = "Đơn hàng {0} của bạn đã bị hủy".format(order.id)
-                content = """
-                    Người bán đã hủy đơn hàng {0} của bạn, nếu bạn sử dụng phương thức thanh toán trực tuyến bạn vui lòng 
-                    kiểm tra lại tài khoản đã thanh toán {1}vnđ xem đã được hệ thống hoàn tiền lại hay chưa.
-                    Nếu chưa bạn vui lòng gửi report để được hỗ trợ sớm nhất
-                """.format(order.id, order.bill.value)
+                content = """Người bán đã hủy đơn hàng {0} của bạn, nếu bạn sử dụng phương thức thanh toán trực tuyến bạn vui lòng 
+                kiểm tra lại tài khoản đã thanh toán {1}vnđ xem đã được hệ thống hoàn tiền lại hay chưa.
+                Nếu chưa bạn vui lòng gửi report để được hỗ trợ sớm nhất.""".format(order.id, order.bill.value)
+                message = firebase_admin.messaging.Message(data={
+                    "type": "1",
+                    "state": "0",
+                    "subject": subject,
+                    "content": content
+                })
+                FCMDevice.objects.filter(user=order.customer).send_message(message)
                 x = Process(target=send_email, args=(order.customer.email, subject, content))
                 x.start()
                 # y = Process(target=send_sms, args=(order.customer.phone_number, content))
@@ -786,11 +808,16 @@ class OrderViewSet(viewsets.ModelViewSet):
         else:
             if receive_order(order.id):
                 subject = "Đơn hàng {0} đã được giao thành công".format(order.id)
-                content = """
-                    Người mua đã nhận được đơn hàng {0} giá trị {1}vnđ , bạn vui lòng kiểm tra tình trạng đơn hàng. 
-                    Nếu có sai sót bạn vui lòng gửi report cho dịch vụ hỗ trợ của Night Owl sớm nhất để được xử lý.
-                    Xin cảm ơn bạn đã tin tưởng chọn Nigh Owl ECommerce làm đối tác bán hàng.
-                """.format(order.id, order.bill.value)
+                content = """Người mua đã nhận được đơn hàng {0} giá trị {1}vnđ , bạn vui lòng kiểm tra tình trạng đơn hàng.
+                Nếu có sai sót bạn vui lòng gửi report cho dịch vụ hỗ trợ của Night Owl sớm nhất để được xử lý.
+                Xin cảm ơn bạn đã tin tưởng chọn Nigh Owl ECommerce làm đối tác bán hàng.""".format(order.id, order.bill.value)
+                message = firebase_admin.messaging.Message(data={
+                    "type": "1",
+                    "state": "1",
+                    "subject": subject,
+                    "content": content
+                })
+                FCMDevice.objects.filter(user=order.store).send_message(message)
                 x = Process(target=send_email, args=(order.store.email, subject, content))
                 x.start()
                 # y = Process(target=send_sms, args=(order.store.phone_number, content))
@@ -905,7 +932,7 @@ class RoomViewSet(viewsets.ViewSet, generics.ListCreateAPIView, generics.Retriev
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        rooms = Room.objects.filter(user__in=[self.request.user])
+        rooms = Room.objects.filter(user__in=[self.request.user.id]).annotate(latest=Max('message__created_date')).order_by('-latest')
         return rooms
 
     def get_serializer_class(self):
@@ -928,11 +955,37 @@ class RoomViewSet(viewsets.ViewSet, generics.ListCreateAPIView, generics.Retriev
             return Response({"message": "room not found"}, status=status.HTTP_404_NOT_FOUND)
         user = User.objects.get(pk=request.user.id)
         if user and room.user.filter(pk=user.id).exists():
-            serializer = ChatRoomMessageSerialier(data=request.data)
+            serializer = self.get_serializer(data=request.data)
             if serializer.is_valid(raise_exception=True):
                 serializer.save(room=room, creator=user)
+                message = firebase_admin.messaging.Message(data={
+                    "type": "0",
+                    "chatroom_id": str(room.id),
+                    "creator_firstname": user.first_name,
+                    "creator_avatar": user.avatar.url,
+                    "content": serializer.data.get('content'),
+                    "created_date": str(serializer.data.get('created_date'))
+                })
+                FCMDevice.objects.filter(user__in=room.user.all()).send_message(message)
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
             return Response({"message": "data not valid"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"message": "you do not have permission"}, status=status.HTTP_403_FORBIDDEN)
+
+    @action(methods=['patch'], detail=True, url_path='add-member')
+    def add_member_to_chatroom(self, request, pk):
+        try:
+            room = Room.objects.get(pk=pk, type=1)
+        except:
+            return Response({"message": "room not found"}, status=status.HTTP_404_NOT_FOUND)
+        user = User.objects.get(pk=request.user.id)
+        if user and room.user.filter(pk=user.id).exists():
+            list_user_ids = request.data.get('list_user_ids')
+            print(list_user_ids)
+            list_users = User.objects.filter(id__in=list_user_ids)
+            if list_users:
+                room.user.add(*list_users)
+                return Response(RoomSerializer(room).data)
+            return Response({"message": "list user not exist"}, status=status.HTTP_400_BAD_REQUEST)
         return Response({"message": "you do not have permission"}, status=status.HTTP_403_FORBIDDEN)
 
     @action(methods=['delete'], detail=True, url_path='delete-chatroom')
@@ -948,7 +1001,7 @@ class RoomViewSet(viewsets.ViewSet, generics.ListCreateAPIView, generics.Retriev
         return Response({"message": "you do not have permission"}, status=status.HTTP_403_FORBIDDEN)
 
 class MessageViewSet(viewsets.ViewSet, generics.ListAPIView):
-    queryset = Message.objects.all()#.order_by('created_date')
+    queryset = Message.objects.all().order_by('created_date')
     serializer_class = ChatRoomMessageSerialier
     permission_classes = [permissions.IsAuthenticated]
     pagination_class = BasePagination
@@ -957,6 +1010,12 @@ class MessageViewSet(viewsets.ViewSet, generics.ListAPIView):
 
     def get_queryset(self):
         return Message.objects.filter(room__user__in=[self.request.user])
+
+    def list(self, request, *args, **kwargs):
+        room_id = request.query_params.get('room__id')
+        if room_id is None:
+            return Response({"message": "room__id is  required"}, status=status.HTTP_400_BAD_REQUEST)
+        return super().list(request, *args, **kwargs)
 
 
 class VoucherViewSet(viewsets.ModelViewSet):
@@ -1008,7 +1067,7 @@ class MomoPayedView(APIView):
             if instance and momo_order.get('amount') == amount == instance.get('amount') and momo_order.get('resultCode') == resultCode == 0:
                 if instance.get("type") == 0:
                     order_ids = instance.get('order_ids')
-                    if complete_checkout_orders_with_payment_gateway(order_ids) == False:
+                    if not complete_checkout_orders_with_payment_gateway(order_ids):
                         x = Thread(target=momo_refund, args=(transId, amount, requestId))
                         x.start()
                 else:
