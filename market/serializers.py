@@ -331,16 +331,38 @@ class AddCartSerializer(ModelSerializer):
         }
 
 class RoomSerializer(ModelSerializer):
+    list_user_ids = ListField(
+        child=IntegerField(),
+        write_only=True
+    )
     user = UserLessInformationSerializer(many=True, read_only=True)
     class Meta:
         model = Room
         fields = "__all__"
+        extra_kwargs = {
+            "type": {"read_only": "true"}
+        }
 
-class MessageSerialier(ModelSerializer):
-    user = UserLessInformationSerializer(many=True, read_only=True)
+    def create(self, validated_data):
+        user_ids = validated_data.pop('list_user_ids')
+        user_id = self.context.get('user')
+        user = User.objects.get(pk=user_id)
+        room = Room.objects.create(type=1)
+        room.user.add(user)
+        if user_ids:
+            users = User.objects.filter(id__in=user_ids)
+            if users:
+                room.user.add(*users)
+        return room
+
+class ChatRoomMessageSerialier(ModelSerializer):
+    creator = UserLessInformationSerializer(many=True, read_only=True)
     class Meta:
         model = Message
         fields = "__all__"
+        extra_kwargs = {
+            "room": {"read_only": "true"}
+        }
 
 class GoogleTokenSerializer(Serializer):
     id_token = CharField(required=True, write_only=True)

@@ -642,17 +642,13 @@ class OrderViewSet(viewsets.ModelViewSet):
         return OrderSerializer
 
     def get_queryset(self):
-        orders = Order.objects.filter(Q(customer = self.request.user.id) | Q(store = self.request.user.id))
+        orders = Order.objects.filter(Q(customer = self.request.user.id) | Q(store=self.request.user.id))
         state = self.request.query_params.get('state')
-        checkout_status = self.request.query_params.get('status')
-        print(checkout_status)
         if state:
             if state == '0':
                 orders = orders.filter(customer = self.request.user.id)
             elif state == '1':
-                orders = orders.filter(store = self.request.user.id)
-        if not checkout_status or checkout_status == "0":
-            orders = orders.filter(bill__isnull=True)
+                orders = orders.filter(store=self.request.user.id)
         return orders
 
 
@@ -778,7 +774,7 @@ class OrderViewSet(viewsets.ModelViewSet):
             return Response({"message": "can not cancel order"}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(methods=['get'], detail=True, url_path="recieve_order")
-    def recieve_order(self, request, pk):
+    def receive_order(self, request, pk):
         try:
             order = Order.objects.get(pk=pk, status=2)
         except:
@@ -788,7 +784,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         except:
             return Response({'message': 'you do not have permission'}, status=status.HTTP_403_FORBIDDEN)
         else:
-            if recieve_order(order.id):
+            if receive_order(order.id):
                 subject = "Đơn hàng {0} đã được giao thành công".format(order.id)
                 content = """
                     Người mua đã nhận được đơn hàng {0} giá trị {1}vnđ , bạn vui lòng kiểm tra tình trạng đơn hàng. 
@@ -801,7 +797,6 @@ class OrderViewSet(viewsets.ModelViewSet):
                 # y.start()
                 return Response({'message': 'order completed'}, status=status.HTTP_200_OK)
             return Response({'message': 'something problem so we can not change the order status'}, status=status.HTTP_400_BAD_REQUEST)
-
 
 class OrderDetailViewSet(viewsets.ViewSet, generics.ListAPIView):
     serializer_class = OrderDetailSerializer
@@ -902,6 +897,66 @@ class BillViewSet(viewsets.ViewSet, generics.ListAPIView):
                     "orders_total_count": order.count()
                 }, status=status.HTTP_200_OK)
             return Response({"message": "orders not found"}, status=status.HTTP_404_NOT_FOUND)
+
+class RoomViewSet(viewsets.ViewSet, generics.ListCreateAPIView, generics.RetrieveUpdateAPIView):
+    queryset = Room.objects.all().order_by('updated_date')
+    serializer_class = RoomSerializer
+    pagination_class = OrderPagination
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        rooms = Room.objects.filter(user__in=[self.request.user])
+        return rooms
+
+    def get_serializer_class(self):
+        if self.action == "send_message_to_room":
+            return ChatRoomMessageSerialier
+        return RoomSerializer
+
+    def create(self, request, *args, **kwargs):
+        serializer = RoomSerializer(data=request.data, context={'user': request.user.id})
+        if serializer.is_valid(raise_exception=True):
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response({"message": "can not create room"}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(methods=['post'], detail=True, url_path='send-message')
+    def send_message_to_room(self, request, pk):
+        try:
+            room = Room.objects.get(pk=pk)
+        except:
+            return Response({"message": "room not found"}, status=status.HTTP_404_NOT_FOUND)
+        user = User.objects.get(pk=request.user.id)
+        if user and room.user.filter(pk=user.id).exists():
+            serializer = ChatRoomMessageSerialier(data=request.data)
+            if serializer.is_valid(raise_exception=True):
+                serializer.save(room=room, creator=user)
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response({"message": "data not valid"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"message": "you do not have permission"}, status=status.HTTP_403_FORBIDDEN)
+
+    @action(methods=['delete'], detail=True, url_path='delete-chatroom')
+    def delete_chat_room(self, request, pk):
+        try:
+            room = Room.objects.get(pk=pk)
+        except:
+            return Response({"message": "room not found"}, status=status.HTTP_404_NOT_FOUND)
+        user = User.objects.get(pk=request.user.id)
+        if user and room.user.filter(pk=user.id).exists():
+            room.user.remove(user)
+            return Response({"message": "room deleted for you"}, status=status.HTTP_204_NO_CONTENT)
+        return Response({"message": "you do not have permission"}, status=status.HTTP_403_FORBIDDEN)
+
+class MessageViewSet(viewsets.ViewSet, generics.ListAPIView):
+    queryset = Message.objects.all()#.order_by('created_date')
+    serializer_class = ChatRoomMessageSerialier
+    permission_classes = [permissions.IsAuthenticated]
+    pagination_class = BasePagination
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = ['room__id']
+
+    def get_queryset(self):
+        return Message.objects.filter(room__user__in=[self.request.user])
 
 
 class VoucherViewSet(viewsets.ModelViewSet):

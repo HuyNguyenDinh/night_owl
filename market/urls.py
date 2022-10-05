@@ -16,6 +16,8 @@ router.register("cart", views.CartDetailViewSet, basename="cart")
 router.register("address", views.AddressViewSet, basename="user_address")
 router.register("voucher", views.VoucherViewSet, basename="voucher")
 router.register('devices', FCMDeviceAuthorizedViewSet, basename="fcm-devices")
+router.register("chatrooms", views.RoomViewSet, basename="chat-rooms")
+router.register("messages", views.MessageViewSet, basename="messages")
 
 urlpatterns = [
     path('', include(router.urls)),

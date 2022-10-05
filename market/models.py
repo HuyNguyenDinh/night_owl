@@ -194,6 +194,7 @@ class Room(models.Model):
     type = models.IntegerField(choices=ROOMCHAT_CHOICES, default=0)
 
 class Message(models.Model):
-    content = models.TextField()
+    content = models.TextField(null=False, blank=False)
     room = models.ForeignKey(Room, on_delete=models.CASCADE)
     creator = models.ForeignKey(User, on_delete=models.CASCADE)
+    created_date = models.DateTimeField(auto_now_add=True)

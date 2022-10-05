@@ -216,7 +216,7 @@ def cancel_order(order_id):
     else:
         return True
 
-def recieve_order(order_id):
+def receive_order(order_id):
     try:
         with transaction.atomic():
             order = Order.objects.get(pk=order_id)
