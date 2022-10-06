@@ -419,3 +419,13 @@ class ProductOfUserSerializer(ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'first_name', 'last_name', 'phone_number', 'avatar', 'product_set']
+
+class ReportSerialier(ModelSerializer):
+    reporter = UserLessInformationSerializer(read_only=True)
+
+    class Meta:
+        model = Report
+        fields = "__all__"
+        extra_kwargs = {
+            "status": {'read_only': 'true'}
+        }

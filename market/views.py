@@ -248,7 +248,9 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.UpdateAPIVi
                 except:
                     user_first_name = user_info.get('given_name')
                     user_last_name = user_info.get('family_name')
-                    return Response(GoogleTokenSerializer({"email": user_email, "first_name": user_first_name, "last_name": user_last_name}).data, status=status.HTTP_302_FOUND)
+                    return Response(GoogleTokenSerializer({
+                        "email": user_email, "first_name": user_first_name, "last_name": user_last_name
+                    }).data, status=status.HTTP_302_FOUND)
                 else:
                     refresh = RefreshToken.for_user(user)
                     return Response({
@@ -307,7 +309,7 @@ class CartDetailViewSet(viewsets.ViewSet, generics.ListAPIView, generics.Retriev
     pagination_class = None
 
     def get_queryset(self):
-        return CartDetail.objects.filter(customer = self.request.user.id)
+        return CartDetail.objects.filter(customer=self.request.user.id)
 
     @action(methods=['get'], detail=False, url_path='get-cart-groupby-owner')
     def get_cart_groupby_owner(self, request):
@@ -338,7 +340,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         if self.action in ["list", "retrieve", "get_comments", "get_options"]:
             return [permissions.AllowAny(), ]
         elif self.action == 'add_comment':
-            return [permissions.IsAuthenticated(), ]
+            return [VerifiedUserPermission(), ]
         elif self.action == 'create':
             return [BusinessPermission(), ]
         return [BusinessOwnerPermission(), ]
@@ -644,7 +646,7 @@ class OrderViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ["accept_order", "delete", "cancel_order"]:
             return [StoreOwnerPermission(), ]
-        return [permissions.IsAuthenticated() ,]
+        return [VerifiedUserPermission(),]
         
     def get_serializer_class(self):
         if self.action in ["list"]:
@@ -654,11 +656,11 @@ class OrderViewSet(viewsets.ModelViewSet):
         return OrderSerializer
 
     def get_queryset(self):
-        orders = Order.objects.filter(Q(customer = self.request.user.id) | Q(store=self.request.user.id))
+        orders = Order.objects.filter(Q(customer=self.request.user.id) | Q(store=self.request.user.id))
         state = self.request.query_params.get('state')
         if state:
             if state == '0':
-                orders = orders.filter(customer = self.request.user.id)
+                orders = orders.filter(customer=self.request.user.id)
             elif state == '1':
                 orders = orders.filter(store=self.request.user.id)
         return orders
@@ -719,7 +721,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                     result.append(m)
                 success = True
             except:
-                return Response({'message':'some product options has out of stock or your balance not enough to pay'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'message': 'some product options has out of stock or your balance not enough to pay'}, status=status.HTTP_400_BAD_REQUEST)
             if success:
                 for i in result:
                     odds = i.orderdetail_set.values_list('cart_id__id', flat=True)
@@ -827,7 +829,7 @@ class OrderViewSet(viewsets.ModelViewSet):
 
 class OrderDetailViewSet(viewsets.ViewSet, generics.ListAPIView):
     serializer_class = OrderDetailSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [VerifiedUserPermission]
 
     def get_queryset(self):
         status = self.request.query_params.get('status')
@@ -841,7 +843,7 @@ class BillViewSet(viewsets.ViewSet, generics.ListAPIView):
     queryset = Bill.objects.all()
     serializer_class = BillSerializer
     pagination_class = ProductPagination
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [VerifiedUserPermission]
 
     def get_permissions(self):
         if self.action in ['monthly_statistic', ]:
@@ -1049,6 +1051,24 @@ class VoucherViewSet(viewsets.ModelViewSet):
         elif self.action == 'create':
             return [BusinessPermission(), ]
         return [BusinessOwnerPermission(), ]
+
+class ReportViewSet(viewsets.ModelViewSet):
+    queryset = Report.objects.all()
+    serializer_class = ReportSerialier
+    permission_classes = [permissions.IsAuthenticated]
+    pagination_class = BasePagination
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid(raise_exception=True):
+            serializer.save(reporter=request.user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response({"message": "some thing not correct, please create report again"},\
+                        status=status.HTTP_400_BAD_REQUEST)
+
+    def get_queryset(self):
+        reports = Report.objects.filter(reporter=self.request.user)
+        return reports
 
 class MomoPayedView(APIView):
     def post(self, request, secret_link):
