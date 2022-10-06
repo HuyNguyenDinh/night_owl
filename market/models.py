@@ -175,6 +175,9 @@ class Bill(models.Model):
     order_payed = models.OneToOneField(Order, on_delete=models.CASCADE, default=False)
     customer = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
 
+    def __str__(self):
+        return "Order Id: " +  str(self.order_payed.id)
+
 class CartDetail(models.Model):
     quantity = models.PositiveIntegerField(validators=[MinValueValidator(1)])
     customer = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -189,6 +192,9 @@ class Rating(models.Model):
     creator = models.ForeignKey(User, on_delete=models.CASCADE)
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
 
+    def __str__(self):
+        return self.creator.first_name + " rated " + self.product.name + "\t" + str(self.rate)
+
 class Voucher(models.Model):
     discount = models.DecimalField(max_digits=20, decimal_places=2, validators=[MinValueValidator(0)], null=False, blank=False)
     start_date = models.DateTimeField(auto_now_add=True)
@@ -197,6 +203,9 @@ class Voucher(models.Model):
     is_percentage = models.BooleanField(default=False)
     products = models.ManyToManyField(Product)
     creator = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+
+    def __str__(self):
+        return self.code
 
 class Room(models.Model):
     created_date = models.DateTimeField(auto_now_add=True)
@@ -215,3 +224,6 @@ class Message(models.Model):
     room = models.ForeignKey(Room, on_delete=models.CASCADE)
     creator = models.ForeignKey(User, on_delete=models.CASCADE)
     created_date = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return "Room " + str(self.room.id) + ", message id " + str(self.id)
