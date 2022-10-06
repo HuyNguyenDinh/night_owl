@@ -1067,7 +1067,7 @@ class ReportViewSet(viewsets.ModelViewSet):
                         status=status.HTTP_400_BAD_REQUEST)
 
     def get_queryset(self):
-        reports = Report.objects.filter(reporter=self.request.user)
+        reports = Report.objects.filter(reporter=self.request.user.id)
         return reports
 
     def get_serializer_class(self):
