@@ -339,16 +339,17 @@ def make_order_from_list_cart(list_cart_id, user_id, data):
     user = User.objects.get(pk=user_id)
     result = []
     if carts:
-        stores = User.objects.filter(product__option__cartdetail__in=carts).distinct().exclude(id = user_id)
+        stores = User.objects.filter(product__option__cartdetail__in=carts).distinct().exclude(id=user_id)
         for store in stores:
             cart_order = carts.filter(product_option__base_product__owner=store)
             if cart_order:
                 serializer = OrderSerializer(data=data)
-                if serializer.is_valid(raise_exception=True):   
+                if serializer.is_valid(raise_exception=True):
                     order = serializer.save(store=store, customer=user)
                     order.save()
                     for c in cart_order:
-                        _ = OrderDetail.objects.create(quantity=c.quantity, product_option= c.product_option, unit_price= c.product_option.price, order=order, cart_id=c)
+                        _ = OrderDetail.objects.create(quantity=c.quantity, product_option=c.product_option,\
+                                                       unit_price=c.product_option.price, order=order, cart_id=c)
                     shipping_data = json.loads(calculate_shipping_fee(order_id=order.id))
                     if shipping_data.get('code') == 200:
                         shipping_fee = shipping_data.get('data').get('total')

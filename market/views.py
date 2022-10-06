@@ -668,7 +668,7 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         address = Address.objects.filter(creator=request.user)
-        if not address.exists():
+        if not address:
             return Response({'message': 'you need to add the address before make order'}, status=status.HTTP_400_BAD_REQUEST)
 
         order = Order.objects.filter(customer=request.user.id, status=0)
