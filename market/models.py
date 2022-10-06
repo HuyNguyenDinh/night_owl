@@ -71,6 +71,7 @@ class Address(models.Model):
 
 class Report(models.Model):
     created_date = models.DateTimeField(auto_now_add=True)
+    subject = models.TextField(blank=False, null=False)
     content = models.TextField(blank=False, null=False)
 
     STATUS_CHOICE = (
@@ -82,6 +83,9 @@ class Report(models.Model):
 
     status = models.IntegerField(choices=STATUS_CHOICE, default=0)
     reporter = models.ForeignKey(User, on_delete=models.CASCADE)
+
+    def __str__(self) -> str:
+        return self.subject
 
 class Category(models.Model):
     name = models.CharField(max_length= 255,unique=True, blank=False, null=False)
