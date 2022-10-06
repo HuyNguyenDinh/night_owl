@@ -53,7 +53,7 @@ class User(AbstractUser):
     is_business = models.BooleanField(default=False)
 
     def __str__(self) -> str:
-        return self.first_name + ' ' + self.last_name
+        return self.first_name + ' ' + self.last_name + " - " + str(self.id)
 
 class Address(models.Model):
     # Using GHN API Address for province_id, district_id, ward_id

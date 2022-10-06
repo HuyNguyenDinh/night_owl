@@ -57,10 +57,24 @@ class ReportForm(forms.ModelForm):
         model = Report
         fields = "__all__"
 
+class  ReplyInline(admin.TabularInline):
+    model = Reply
+    pk_name = 'report'
+
 class ReportAdmin(admin.ModelAdmin):
     form = ReportForm
     search_fields = ['id', 'reporter__email', 'reporter__phone_number']
     list_filter = ['status', 'created_date']
+    inlines = [ReplyInline, ]
+
+    def save_formset(self, request, form, formset, change):
+        instances = formset.save(commit=False)
+        for obj in formset.deleted_objects:
+            obj.delete()
+        for instance in instances:
+            instance.creator = request.user
+            instance.save()
+        formset.save_m2m()
 
 class OrderDetailForm(forms.ModelForm):
     class Meta:
@@ -71,13 +85,17 @@ class OrderDetailAdmin(admin.ModelAdmin):
     search_fields = ['id', 'order__id', 'order__store__id', 'order__store__email', 'order__store__phone_numer',\
                      'order__customer__id', 'order__customer__email', 'order__customer__phone_numer']
 
+class BillInline(admin.TabularInline):
+    model = Bill
+    pk_name = 'order_payed'
+
 class OrderForm(forms.ModelForm):
     class Meta:
         model = Order
         fields = "__all__"
 
 class OrderAdmin(admin.ModelAdmin):
-    inlines = [OrderDetailInline, ]
+    inlines = [OrderDetailInline, BillInline]
     form = OrderForm
     search_fields = ['id', 'store__id', 'store__email', 'store__phone_numer', 'customer__id', 'customer__email',\
                      'customer__phone_numer']

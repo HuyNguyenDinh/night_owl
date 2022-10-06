@@ -420,12 +420,35 @@ class ProductOfUserSerializer(ModelSerializer):
         model = User
         fields = ['id', 'first_name', 'last_name', 'phone_number', 'avatar', 'product_set']
 
+class ReplySerializer(ModelSerializer):
+    creator = UserLessInformationSerializer(read_only=True)
+
+    class Meta:
+        model = Reply
+        fields = "__all__"
+        extra_kwargs = {
+            "created_date": {'read_only': 'true'},
+            "report": {'read_only': 'true'}
+        }
+
 class ReportSerialier(ModelSerializer):
     reporter = UserLessInformationSerializer(read_only=True)
+    reply_set = ReplySerializer(many=True, read_only=True)
 
     class Meta:
         model = Report
         fields = "__all__"
         extra_kwargs = {
-            "status": {'read_only': 'true'}
+            "status": {'read_only': 'true'},
+            "created_date": {'read_only': 'true'}
+        }
+
+class ListReportSerializer(ModelSerializer):
+    reporter = UserLessInformationSerializer(read_only=True)
+    class Meta:
+        model = Report
+        fields = "__all__"
+        extra_kwargs = {
+            "status": {'read_only': 'true'},
+            "created_date": {'read_only': 'true'}
         }

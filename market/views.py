@@ -1055,7 +1055,7 @@ class VoucherViewSet(viewsets.ModelViewSet):
 class ReportViewSet(viewsets.ModelViewSet):
     queryset = Report.objects.all()
     serializer_class = ReportSerialier
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsReporter]
     pagination_class = BasePagination
 
     def create(self, request, *args, **kwargs):
@@ -1069,6 +1069,31 @@ class ReportViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         reports = Report.objects.filter(reporter=self.request.user)
         return reports
+
+    def get_serializer_class(self):
+        if self.action == 'add_reply_to_report':
+            return ReplySerializer
+        elif self.action == 'list':
+            return ListReportSerializer
+        return ReportSerialier
+
+    @action(methods=['post'], detail=True, url_path='add-reply')
+    def add_reply_to_report(self, request, pk):
+        try:
+            report = Report.objects.get(pk=pk)
+        except:
+            return Response({"message": "report not found"}, status=status.HTTP_404_NOT_FOUND)
+        try:
+            self.check_object_permissions(request, report)
+        except:
+            return Response({"message": "you do not have permission"}, status=status.HTTP_403_FORBIDDEN)
+        if report.status == 3:
+            return Response({"message": "report had been done, please create new report to add reply"}, status=status.HTTP_410_GONE)
+        serializer = ReplySerializer(data=request.data)
+        if serializer.is_valid(raise_exception=True):
+            serializer.save(creator=request.user, report=report)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response({"message": "something wrong"}, status=status.HTTP_400_BAD_REQUEST)
 
 class MomoPayedView(APIView):
     def post(self, request, secret_link):

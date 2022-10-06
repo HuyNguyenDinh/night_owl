@@ -220,6 +220,7 @@ def receive_order(order_id):
     try:
         with transaction.atomic():
             order = Order.objects.get(pk=order_id)
+            order.completed_date = timezone.now()
             order.status = 3
             increase_user_balance(order.store.id, order.bill.value)
             order.save()
