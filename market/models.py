@@ -69,6 +69,20 @@ class Address(models.Model):
     def __str__(self) -> str:
         return self.full_address
 
+class Report(models.Model):
+    created_date = models.DateTimeField(auto_now_add=True)
+    content = models.TextField(blank=False, null=False)
+
+    STATUS_CHOICE = (
+        (0, 'pending'),
+        (1, 'checked'),
+        (2, 're_apply'),
+        (3, 'done')
+    )
+
+    status = models.IntegerField(choices=STATUS_CHOICE, default=0)
+    reporter = models.ForeignKey(User, on_delete=models.CASCADE)
+
 class Category(models.Model):
     name = models.CharField(max_length= 255,unique=True, blank=False, null=False)
 
