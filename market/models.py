@@ -87,6 +87,12 @@ class Report(models.Model):
     def __str__(self) -> str:
         return self.subject
 
+class Reply(models.Model):
+    content = models.TextField()
+    created_date = models.DateTimeField(auto_now_add=True)
+    report = models.ForeignKey(Report, on_delete=models.CASCADE)
+    creator = models.ForeignKey(User, on_delete=models.CASCADE)
+
 class Category(models.Model):
     name = models.CharField(max_length= 255,unique=True, blank=False, null=False)
 
