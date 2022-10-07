@@ -48,12 +48,12 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.UpdateAPIVi
             return ChangePasswordSerializer
         elif self.action == "get_token_by_user_id_and_reset_code":
             return GetTokenWithUserIdAndCodeSerializer
-        elif self.action == "send_reset_code_to_email":
-            return UserIdSerializer
         elif self.action == "create_single_chatroom":
             return RoomSerializer
         elif self.action == "change_avatar":
             return UserAvatarSerializer
+        elif self.action == "get_user_id_with_email":
+            return EmailSerializer
         return UserSerializer
 
     @action(methods=['patch'], detail=False, url_path='change-avatar')
@@ -108,20 +108,17 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.UpdateAPIVi
         else:
             return Response(EmailSerializer({"user_id": user.id}).data, status=status.HTTP_200_OK)
 
-    @action(methods=['post'], detail=False, url_path='send-reset-code-to-email')
-    def send_reset_code_to_email(self, request):
-        user_id = request.data.get('user_id')
-        if not user_id:
-            return Response({"message": "user_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+    @action(methods=['get'], detail=True, url_path='send-reset-code-to-email')
+    def send_reset_code_to_email(self, request, pk):
         try:
-            user = User.objects.get(pk=user_id)
+            user = User.objects.get(pk=pk)
+        except:
+            return Response({"message": "user not found"}, status=status.HTTP_404_NOT_FOUND)
+        else:
             code = add_reset_code(user.id)
             subject = "Xác nhận reset mật khẩu của {0} Night Owl ECommerce".format(user.first_name)
             content = """Mã xác minh để reset mật khẩu Night Owl ECommerce của {0} là {1}""".format(user.first_name, code)
             send_email(user.email, subject, content)
-        except:
-            return Response({"message": "user not found"}, status=status.HTTP_404_NOT_FOUND)
-        else:
             return Response({"message": "reset code has been sent to your email"}, status=status.HTTP_200_OK)
 
     @action(methods=['post'], detail=False, url_path='get-token-by-user-id-and-reset-code')
@@ -280,7 +277,7 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.UpdateAPIVi
 
     def get_permissions(self):
         if self.action in ['create', 'login_with_google', "send_reset_code_to_email", "get_user_id_with_email",\
-                           'product_of_user']:
+                           'product_of_user', 'get_token_by_user_id_and_reset_code']:
             return [permissions.AllowAny(), ]
         return [permissions.IsAuthenticated(), ]
 

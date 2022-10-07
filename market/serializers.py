@@ -416,8 +416,6 @@ class GetTokenWithUserIdAndCodeSerializer(Serializer):
     user_id = IntegerField(write_only=True, required=True)
     code = CharField(write_only=True, required=True)
 
-class UserIdSerializer(Serializer):
-    user_id = IntegerField(write_only=True, required=True)
 class ResetPasswordSerialier(Serializer):
     new_password = CharField(write_only=True, required=True)
     confirm_password = CharField(write_only=True, required=True)
