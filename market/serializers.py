@@ -15,6 +15,15 @@ class AddressSerializer(ModelSerializer):
     class Meta:
         model = Address
         exclude = ["creator"]
+    #     extra_kwargs = {
+    #         "full_address": {"read_only": "true"}
+    #     }
+    #
+    # def create(self, validated_data):
+    #     pass
+    #
+    # def update(self, instance, validated_data):
+    #     pass
 
 class UserSerializer(ModelSerializer):
     address = AddressSerializer(required=False, read_only=True)
@@ -152,8 +161,8 @@ class ProductSerializer(ModelSerializer):
 
 # show rating
 class RatingSerializer(ModelSerializer):
-    creator = UserSerializer()
-    product = ProductSerializer()
+    creator = UserLessInformationSerializer(read_only=True)
+    product = ProductSerializer(read_only=True)
 
     class Meta:
         model = Rating
@@ -177,7 +186,7 @@ class CreateRatingSerializer(ModelSerializer):
 # Get product detail
 class ProductRetrieveSerializer(ModelSerializer):
     option_set = OptionSerializer(many=True)
-    owner = UserSerializer()
+    owner = UserLessInformationSerializer(read_only=True)
     categories = CategorySerializer(many=True)
     rating_set = RatingSerializer(many=True)
 

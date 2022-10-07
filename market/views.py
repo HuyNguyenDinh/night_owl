@@ -293,14 +293,18 @@ class AddressViewSet(viewsets.ModelViewSet):
             return [permissions.IsAuthenticated(), ]
         return [IsCreator(), ]
     def get_queryset(self):
-        return Address.objects.filter(creator__id = self.request.user.id)
+        return Address.objects.filter(creator__id=self.request.user.id)
     
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid(raise_exception=True):
-            serializer.save(creator=request.user)
-            headers = self.get_success_headers(serializer.data)
-            return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+            try:
+                serializer.save(creator=request.user)
+            except:
+                return Response({"message": "can not add more address because you still have address"}, status=status.HTTP_400_BAD_REQUEST)
+            else:
+                headers = self.get_success_headers(serializer.data)
+                return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
         return Response({'message': 'cannot add address to your account'}, status=status.HTTP_400_BAD_REQUEST)
 
 class CartDetailViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveUpdateDestroyAPIView):
@@ -826,6 +830,19 @@ class OrderViewSet(viewsets.ModelViewSet):
                 # y.start()
                 return Response({'message': 'order completed'}, status=status.HTTP_200_OK)
             return Response({'message': 'something problem so we can not change the order status'}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(methods=['get'], detail=True, url_path='voucher-available')
+    def get_voucher_available(self, request, pk):
+        try:
+            order = Order.objects.get(pk=pk)
+        except:
+            return Response({"message": "order not found"}, status=status.HTTP_404_NOT_FOUND)
+        options = order.orderdetail_set.all().values_list('product_option', flat=True)
+        vouchers = Voucher.objects.filter(products__option__in=options)\
+            .filter(Q(start_date__lte=timezone.now()) & (Q(end_date__gt=timezone.now()) | Q(end_date__isnull=True)))
+        if vouchers:
+            return Response(VoucherSerializer(vouchers, many=True).data, status=status.HTTP_200_OK)
+        return Response({"message": "voucher not found"}, status=status.HTTP_404_NOT_FOUND)
 
 class OrderDetailViewSet(viewsets.ViewSet, generics.ListAPIView):
     serializer_class = OrderDetailSerializer
