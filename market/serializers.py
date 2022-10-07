@@ -100,7 +100,7 @@ class CreateOptionSerializer(ModelSerializer):
     picture_set = OptionPictureSerializer(many=True, read_only=True)
     uploaded_images = ListField(
         child=Base64ImageField(allow_empty_file=False, required=True),
-        write_only = True,
+        write_only=True,
         required=True
     )
     class Meta:
@@ -357,18 +357,31 @@ class AddCartSerializer(ModelSerializer):
             'product_option': {'read_only': 'true'},
         }
 
+class ChatRoomMessageSerialier(ModelSerializer):
+    creator = UserLessInformationSerializer(read_only=True)
+    class Meta:
+        model = Message
+        fields = "__all__"
+        extra_kwargs = {
+            "room": {"read_only": "true"}
+        }
+
 class RoomSerializer(ModelSerializer):
     list_user_ids = ListField(
         child=IntegerField(),
         write_only=True
     )
     user = UserLessInformationSerializer(many=True, read_only=True)
+    last_message = SerializerMethodField(method_name='get_last_message', read_only=True)
     class Meta:
         model = Room
         fields = "__all__"
         extra_kwargs = {
             "type": {"read_only": "true"}
         }
+
+    def get_last_message(self, obj):
+        return ChatRoomMessageSerialier(obj.message_set.order_by('created_date').last()).data
 
     def create(self, validated_data):
         user_ids = validated_data.pop('list_user_ids')
@@ -382,14 +395,6 @@ class RoomSerializer(ModelSerializer):
                 room.user.add(*users)
         return room
 
-class ChatRoomMessageSerialier(ModelSerializer):
-    creator = UserLessInformationSerializer(read_only=True)
-    class Meta:
-        model = Message
-        fields = "__all__"
-        extra_kwargs = {
-            "room": {"read_only": "true"}
-        }
 
 class GoogleTokenSerializer(Serializer):
     id_token = CharField(required=True, write_only=True)
