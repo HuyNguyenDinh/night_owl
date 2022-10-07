@@ -54,6 +54,8 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.UpdateAPIVi
             return RoomSerializer
         elif self.action == "change_avatar":
             return UserAvatarSerializer
+        elif self.action == "get_user_id_with_email":
+            return EmailSerializer
         return UserSerializer
 
     @action(methods=['patch'], detail=False, url_path='change-avatar')
