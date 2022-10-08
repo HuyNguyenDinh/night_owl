@@ -340,6 +340,8 @@ class ProductViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ["list", "retrieve", "get_comments", "get_options"]:
             return [permissions.AllowAny(), ]
+        elif self.action == "get_vouchers_available_of_product":
+            return [permissions.IsAuthenticated(), ]
         elif self.action == 'add_comment':
             return [VerifiedUserPermission(), ]
         elif self.action == 'create':
@@ -367,6 +369,8 @@ class ProductViewSet(viewsets.ModelViewSet):
             return CreateOptionSerializer
         elif self.action == 'list':
             return ListProductSerializer
+        elif self.action == 'get_vouchers_available_of_product':
+            return VoucherSerializer
         return ProductSerializer
 
     @action(methods=['get'], detail=True, url_path='comments')
@@ -587,6 +591,17 @@ class ProductViewSet(viewsets.ModelViewSet):
                     "total_quantity_count": total_quantity_count
                 }, status=status.HTTP_200_OK)
             return Response({"message": "order details not found"}, status=status.HTTP_404_NOT_FOUND)
+    @action(methods=['get'], detail=True, url_path='vouchers-available')
+    def get_vouchers_available_of_product(self, request, pk):
+        try:
+            product = Product.objects.get(pk=pk)
+        except:
+            return Response({"message": "product not found"}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            vouchers = product.voucher_set.filter(Q(start_date__lte=timezone.now()) & (Q(end_date__gt=timezone.now()) | Q(end_date__isnull=True)))
+            if vouchers:
+                return Response(VoucherSerializer(vouchers, many=True).data)
+            return Response({"message": "voucher not found"}, status=status.HTTP_404_NOT_FOUND)
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
