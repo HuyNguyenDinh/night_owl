@@ -431,7 +431,7 @@ class ProductViewSet(viewsets.ModelViewSet):
                 try:
                     year = int(year)
                 except:
-                    return Response({"message": "month parameter was wrong format it must be [0-12]"})
+                    return Response({"message": "year parameter was wrong format it must be in [0-9]"})
                 else:
                     order_details = order_details.filter(order__order_date__year=year)
             else:
@@ -479,7 +479,7 @@ class ProductViewSet(viewsets.ModelViewSet):
                 try:
                     year = int(year)
                 except:
-                    return Response({"message": "month parameter was wrong format it must be [0-12]"})
+                    return Response({"message": "year parameter was wrong format it must be [0-9]"})
                 else:
                     order_details = order_details.filter(order__order_date__year=year)
             else:
@@ -530,7 +530,7 @@ class ProductViewSet(viewsets.ModelViewSet):
                     try:
                         year = int(year)
                     except:
-                        return Response({"message": "month parameter was wrong format it must be [0-12]"})
+                        return Response({"message": "year parameter was wrong format it must be [0-9]"})
                     else:
                         order_details = order_details.filter(order__order_date__year=year)
                 else:
@@ -580,14 +580,14 @@ class ProductViewSet(viewsets.ModelViewSet):
                     .annotate(total_product_count=Sum('quantity'))
                 product_count_week = order_details.values('order__order_date__week') \
                     .annotate(total_product_count=Sum('quantity'))
-                product_count_day = order_details.values('order__order_date__day') \
+                product_count_month = order_details.values('order__order_date__month') \
                     .annotate(total_product_count=Sum('quantity'))
                 total_quantity_count = order_details.aggregate(total_quantity_count=Sum('quantity')).get(
                     'total_quantity_count')
                 return Response({
                     "product_count_weekday": list(product_count_weekday),
                     "product_count_week": list(product_count_week),
-                    "product_count_day": list(product_count_day),
+                    "product_count_month": list(product_count_month),
                     "total_quantity_count": total_quantity_count
                 }, status=status.HTTP_200_OK)
             return Response({"message": "order details not found"}, status=status.HTTP_404_NOT_FOUND)
