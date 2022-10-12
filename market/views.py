@@ -438,11 +438,11 @@ class ProductViewSet(viewsets.ModelViewSet):
                 order_details = order_details.filter(order__order_date__year=timezone.now().year)
             if order_details:
                 product_count_weekday = order_details.values('order__order_date__week_day') \
-                    .annotate(total_product_count=Sum('quantity'))
+                    .annotate(total_product_count=Sum('quantity')).order_by('order__order_date__week_day')
                 product_count_week = order_details.values('order__order_date__week') \
-                    .annotate(total_product_count=Sum('quantity'))
+                    .annotate(total_product_count=Sum('quantity')).order_by('order__order_date__week')
                 product_count_month = order_details.values('order__order_date__month')\
-                    .annotate(total_product_count=Sum('quantity'))
+                    .annotate(total_product_count=Sum('quantity')).order_by('order__order_date__month')
                 total_quantity_count = order_details.aggregate(total_quantity_count=Sum('quantity')).get(
                     'total_quantity_count')
                 total_product_count = order_details.aggregate(
@@ -486,11 +486,11 @@ class ProductViewSet(viewsets.ModelViewSet):
                 order_details = order_details.filter(order__order_date__year=timezone.now().year)
             if order_details:
                 product_count_weekday = order_details.values('order__order_date__week_day')\
-                    .annotate(total_product_count=Sum('quantity'))
+                    .annotate(total_product_count=Sum('quantity')).order_by('order__order_date__week_day')
                 product_count_week = order_details.values('order__order_date__week')\
-                    .annotate(total_product_count=Sum('quantity'))
+                    .annotate(total_product_count=Sum('quantity')).order_by('order__order_date__week')
                 product_count_day = order_details.values('order__order_date__day')\
-                    .annotate(total_product_count=Sum('quantity'))
+                    .annotate(total_product_count=Sum('quantity')).order_by('order__order_date__day')
                 total_quantity_count = order_details.aggregate(total_quantity_count=Sum('quantity')).get('total_quantity_count')
                 total_product_count = order_details.aggregate(total_count=Count('product_option__base_product__id')).get('total_count')
                 return Response({
@@ -537,11 +537,11 @@ class ProductViewSet(viewsets.ModelViewSet):
                     order_details = order_details.filter(order__order_date__year=timezone.now().year)
                 if order_details:
                     product_count_weekday = order_details.values('order__order_date__week_day') \
-                        .annotate(total_product_count=Sum('quantity'))
+                        .annotate(total_product_count=Sum('quantity')).order_by('order__order_date__week_day')
                     product_count_week = order_details.values('order__order_date__week') \
-                        .annotate(total_product_count=Sum('quantity'))
+                        .annotate(total_product_count=Sum('quantity')).order_by('order__order_date__week')
                     product_count_day = order_details.values('order__order_date__day') \
-                        .annotate(total_product_count=Sum('quantity'))
+                        .annotate(total_product_count=Sum('quantity')).order_by('order__order_date__day')
                     total_quantity_count = order_details.aggregate(total_quantity_count=Sum('quantity')).get(
                         'total_quantity_count')
                     return Response({
@@ -577,11 +577,11 @@ class ProductViewSet(viewsets.ModelViewSet):
                 order_details = order_details.filter(order__order_date__year=timezone.now().year)
             if order_details:
                 product_count_weekday = order_details.values('order__order_date__week_day') \
-                    .annotate(total_product_count=Sum('quantity'))
+                    .annotate(total_product_count=Sum('quantity')).order_by('order__order_date__week_day')
                 product_count_week = order_details.values('order__order_date__week') \
-                    .annotate(total_product_count=Sum('quantity'))
+                    .annotate(total_product_count=Sum('quantity')).order_by('order__order_date__week')
                 product_count_month = order_details.values('order__order_date__month') \
-                    .annotate(total_product_count=Sum('quantity'))
+                    .annotate(total_product_count=Sum('quantity')).order_by('order__order_date__month')
                 total_quantity_count = order_details.aggregate(total_quantity_count=Sum('quantity')).get(
                     'total_quantity_count')
                 return Response({
@@ -898,10 +898,12 @@ class BillViewSet(viewsets.ViewSet, generics.ListAPIView):
             else:
                 order = order.filter(order_date__year=timezone.now().year)
             if order:
-                order_weekday = order.values('order_date__week_day').annotate(total_value=Sum('bill__value'), total_count=Count('id'))
-                order_week = order.values('order_date__week').annotate(total_value=Sum('bill__value'), total_count=Count('id'))
-                order_month = order.values('order_date__month').annotate(total_value=Sum('bill__value'),
-                                                                         total_count=Count('id'))
+                order_weekday = order.values('order_date__week_day')\
+                    .annotate(total_value=Sum('bill__value'), total_count=Count('id')).order_by('order_date__week_day')
+                order_week = order.values('order_date__week')\
+                    .annotate(total_value=Sum('bill__value'), total_count=Count('id')).order_by('order_date__week')
+                order_month = order.values('order_date__month')\
+                    .annotate(total_value=Sum('bill__value'), total_count=Count('id')).order_by('order_date__month')
                 total_order_value = order.aggregate(total_value=Sum('bill__value')).get('total_value')
                 return Response({
                     "weekday": list(order_weekday),
@@ -940,12 +942,12 @@ class BillViewSet(viewsets.ViewSet, generics.ListAPIView):
             else:
                 order = order.filter(order_date__month=timezone.now().month)
             if order:
-                order_weekday = order.values('order_date__week_day').annotate(total_value=Sum('bill__value'),
-                                                                              total_count=Count('id'))
-                order_week = order.values('order_date__week').annotate(total_value=Sum('bill__value'),
-                                                                       total_count=Count('id'))
-                order_day = order.values('order_date__day').annotate(total_value=Sum('bill__value'),
-                                                                       total_count=Count('id'))
+                order_weekday = order.values('order_date__week_day')\
+                    .annotate(total_value=Sum('bill__value'), total_count=Count('id')).order_by('order_date__week_day')
+                order_week = order.values('order_date__week')\
+                    .annotate(total_value=Sum('bill__value'), total_count=Count('id')).order_by('order_date__week')
+                order_day = order.values('order_date__day')\
+                    .annotate(total_value=Sum('bill__value'), total_count=Count('id')).order_by('order_date__day')
                 total_order_value = order.aggregate(total_value=Sum('bill__value')).get('total_value')
                 return Response({
                     "weekday": list(order_weekday),
