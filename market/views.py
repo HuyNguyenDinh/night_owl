@@ -602,6 +602,8 @@ class ProductViewSet(viewsets.ModelViewSet):
             if vouchers:
                 return Response(VoucherSerializer(vouchers, many=True).data)
             return Response({"message": "voucher not found"}, status=status.HTTP_404_NOT_FOUND)
+
+
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
@@ -611,6 +613,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
         if self.action in ["list", "retrieve"]:
             return [permissions.AllowAny(), ]
         return [permissions.IsAdminUser(), ]
+
 
 class OptionViewSet(viewsets.ViewSet, generics.UpdateAPIView, generics.DestroyAPIView):
     queryset = Option.objects.all()
@@ -653,6 +656,12 @@ class OptionViewSet(viewsets.ViewSet, generics.UpdateAPIView, generics.DestroyAP
                     return Response(cart.data)
             return Response({'message': 'cannot add product to your cart'}, status=status.HTTP_400_BAD_REQUEST)
 
+class OptionPictureViewSet(viewsets.ViewSet, generics.UpdateAPIView):
+    queryset = Picture.objects.all()
+    pagination_class = BasePagination
+    permission_classes = [IsOptionPictureOwner, ]
+    serializer_class = OptionPictureSerializer
+
 class OrderViewSet(viewsets.ModelViewSet):
     pagination_class = OrderPagination
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
@@ -680,7 +689,6 @@ class OrderViewSet(viewsets.ModelViewSet):
             elif state == '1':
                 orders = orders.filter(store=self.request.user.id)
         return orders
-
 
     def create(self, request, *args, **kwargs):
         address = Address.objects.filter(creator=request.user)
@@ -856,6 +864,7 @@ class OrderViewSet(viewsets.ModelViewSet):
             return Response(VoucherSerializer(vouchers, many=True).data, status=status.HTTP_200_OK)
         return Response({"message": "voucher not found"}, status=status.HTTP_404_NOT_FOUND)
 
+
 class OrderDetailViewSet(viewsets.ViewSet, generics.ListAPIView):
     serializer_class = OrderDetailSerializer
     permission_classes = [VerifiedUserPermission]
@@ -956,6 +965,7 @@ class BillViewSet(viewsets.ViewSet, generics.ListAPIView):
                 }, status=status.HTTP_200_OK)
             return Response({"message": "orders not found"}, status=status.HTTP_404_NOT_FOUND)
 
+
 class RoomViewSet(viewsets.ViewSet, generics.ListCreateAPIView, generics.RetrieveUpdateAPIView):
     queryset = Room.objects.all().order_by('updated_date')
     serializer_class = RoomSerializer
@@ -1031,6 +1041,7 @@ class RoomViewSet(viewsets.ViewSet, generics.ListCreateAPIView, generics.Retriev
             return Response({"message": "room deleted for you"}, status=status.HTTP_204_NO_CONTENT)
         return Response({"message": "you do not have permission"}, status=status.HTTP_403_FORBIDDEN)
 
+
 class MessageViewSet(viewsets.ViewSet, generics.ListAPIView):
     queryset = Message.objects.all().order_by('created_date')
     serializer_class = ChatRoomMessageSerialier
@@ -1081,6 +1092,7 @@ class VoucherViewSet(viewsets.ModelViewSet):
             return [BusinessPermission(), ]
         return [BusinessOwnerPermission(), ]
 
+
 class ReportViewSet(viewsets.ModelViewSet):
     queryset = Report.objects.all()
     serializer_class = ReportSerialier
@@ -1123,6 +1135,7 @@ class ReportViewSet(viewsets.ModelViewSet):
             serializer.save(creator=request.user, report=report)
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response({"message": "something wrong"}, status=status.HTTP_400_BAD_REQUEST)
+
 
 class MomoPayedView(APIView):
     def post(self, request, secret_link):
