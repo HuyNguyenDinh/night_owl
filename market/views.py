@@ -22,6 +22,7 @@ from fcm_django.models import FCMDevice
 import firebase_admin.messaging
 # Create your views here.
 
+
 class UserViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.UpdateAPIView):
     queryset = User.objects.filter(is_active=True)
     parser_classes = [MultiPartParser, JSONParser]
@@ -70,7 +71,7 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.UpdateAPIVi
     @action(methods=['get'], detail=True, url_path='products')
     def product_of_user(self, request, pk):
         try:
-            user = User.objects.get(pk=pk)
+            user = User.objects.get(pk=pk, is_business=True)
         except:
             return Response({"message": "user not found"}, status=status.HTTP_404_NOT_FOUND)
         else:
@@ -304,6 +305,7 @@ class AddressViewSet(viewsets.ModelViewSet):
                 return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
         return Response({'message': 'cannot add address to your account'}, status=status.HTTP_400_BAD_REQUEST)
 
+
 class CartDetailViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = CartSerializer
@@ -349,12 +351,15 @@ class ProductViewSet(viewsets.ModelViewSet):
         return [BusinessOwnerPermission(), ]
 
     def get_queryset(self):
+        has_options = self.request.query_params.get('has_option')
         products = Product.objects.all()
         if self.action in ["update", "destroy", "add_option"]:
             products = products.filter(owner=self.request.user.id)
         elif self.action in ["list", "retrieve"]:
-            products = products.filter(option__isnull=False).distinct()
-
+            if has_options and has_options == "0":
+                pass
+            else:
+                products = products.filter(option__isnull=False).distinct()
         cate_id = self.request.query_params.get('category_id')
         if cate_id is not None:
             products = products.filter(categories=cate_id)
@@ -406,7 +411,7 @@ class ProductViewSet(viewsets.ModelViewSet):
             serializer = CreateOptionSerializer(data=request.data)
             if serializer.is_valid(raise_exception=True):
                 serializer.save(base_product=pd)
-                return Response(serializer.data, status = status.HTTP_201_CREATED)
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
             return Response({'message': "cannot add options to product"}, status=status.HTTP_400_BAD_REQUEST)
         
 
@@ -438,11 +443,11 @@ class ProductViewSet(viewsets.ModelViewSet):
                 order_details = order_details.filter(order__order_date__year=timezone.now().year)
             if order_details:
                 product_count_weekday = order_details.values('order__order_date__week_day') \
-                    .annotate(total_product_count=Sum('quantity'))
+                    .annotate(total_product_count=Sum('quantity')).order_by('order__order_date__week_day')
                 product_count_week = order_details.values('order__order_date__week') \
-                    .annotate(total_product_count=Sum('quantity'))
+                    .annotate(total_product_count=Sum('quantity')).order_by('order__order_date__week')
                 product_count_month = order_details.values('order__order_date__month')\
-                    .annotate(total_product_count=Sum('quantity'))
+                    .annotate(total_product_count=Sum('quantity')).order_by('order__order_date__month')
                 total_quantity_count = order_details.aggregate(total_quantity_count=Sum('quantity')).get(
                     'total_quantity_count')
                 total_product_count = order_details.aggregate(
@@ -486,11 +491,11 @@ class ProductViewSet(viewsets.ModelViewSet):
                 order_details = order_details.filter(order__order_date__year=timezone.now().year)
             if order_details:
                 product_count_weekday = order_details.values('order__order_date__week_day')\
-                    .annotate(total_product_count=Sum('quantity'))
+                    .annotate(total_product_count=Sum('quantity')).order_by('order__order_date__week_day')
                 product_count_week = order_details.values('order__order_date__week')\
-                    .annotate(total_product_count=Sum('quantity'))
+                    .annotate(total_product_count=Sum('quantity')).order_by('order__order_date__week')
                 product_count_day = order_details.values('order__order_date__day')\
-                    .annotate(total_product_count=Sum('quantity'))
+                    .annotate(total_product_count=Sum('quantity')).order_by('order__order_date__day')
                 total_quantity_count = order_details.aggregate(total_quantity_count=Sum('quantity')).get('total_quantity_count')
                 total_product_count = order_details.aggregate(total_count=Count('product_option__base_product__id')).get('total_count')
                 return Response({
@@ -537,11 +542,11 @@ class ProductViewSet(viewsets.ModelViewSet):
                     order_details = order_details.filter(order__order_date__year=timezone.now().year)
                 if order_details:
                     product_count_weekday = order_details.values('order__order_date__week_day') \
-                        .annotate(total_product_count=Sum('quantity'))
+                        .annotate(total_product_count=Sum('quantity')).order_by('order__order_date__week_day')
                     product_count_week = order_details.values('order__order_date__week') \
-                        .annotate(total_product_count=Sum('quantity'))
+                        .annotate(total_product_count=Sum('quantity')).order_by('order__order_date__week')
                     product_count_day = order_details.values('order__order_date__day') \
-                        .annotate(total_product_count=Sum('quantity'))
+                        .annotate(total_product_count=Sum('quantity')).order_by('order__order_date__day')
                     total_quantity_count = order_details.aggregate(total_quantity_count=Sum('quantity')).get(
                         'total_quantity_count')
                     return Response({
@@ -577,11 +582,11 @@ class ProductViewSet(viewsets.ModelViewSet):
                 order_details = order_details.filter(order__order_date__year=timezone.now().year)
             if order_details:
                 product_count_weekday = order_details.values('order__order_date__week_day') \
-                    .annotate(total_product_count=Sum('quantity'))
+                    .annotate(total_product_count=Sum('quantity')).order_by('order__order_date__week_day')
                 product_count_week = order_details.values('order__order_date__week') \
-                    .annotate(total_product_count=Sum('quantity'))
+                    .annotate(total_product_count=Sum('quantity')).order_by('order__order_date__week')
                 product_count_month = order_details.values('order__order_date__month') \
-                    .annotate(total_product_count=Sum('quantity'))
+                    .annotate(total_product_count=Sum('quantity')).order_by('order__order_date__month')
                 total_quantity_count = order_details.aggregate(total_quantity_count=Sum('quantity')).get(
                     'total_quantity_count')
                 return Response({
@@ -591,6 +596,7 @@ class ProductViewSet(viewsets.ModelViewSet):
                     "total_quantity_count": total_quantity_count
                 }, status=status.HTTP_200_OK)
             return Response({"message": "order details not found"}, status=status.HTTP_404_NOT_FOUND)
+
     @action(methods=['get'], detail=True, url_path='vouchers-available')
     def get_vouchers_available_of_product(self, request, pk):
         try:
@@ -603,16 +609,27 @@ class ProductViewSet(viewsets.ModelViewSet):
                 return Response(VoucherSerializer(vouchers, many=True).data)
             return Response({"message": "voucher not found"}, status=status.HTTP_404_NOT_FOUND)
 
+    def destroy(self, request, *args, **kwargs):
+        product = self.get_object()
+        try:
+            self.check_object_permissions(request, product)
+        except:
+            return Response({"message": "you do not have permission"}, status=status.HTTP_403_FORBIDDEN)
+        order_id_list = product.option_set.filter(orderdetail__order__status=1)\
+            .values_list("orderdetail__order__id", flat=True).distinct()
+        if order_id_list:
+            for i in order_id_list:
+                cancel_order(i)
+            Order.objects.filter(pk__in=order_id_list)
+        return super().destroy(request, *args, **kwargs)
 
-class CategoryViewSet(viewsets.ModelViewSet):
+
+class CategoryViewSet(viewsets.ViewSet, generics.ListAPIView):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
     pagination_class = CategoryPagination
+    permission_classes = [permissions.AllowAny, ]
 
-    def get_permissions(self):
-        if self.action in ["list", "retrieve"]:
-            return [permissions.AllowAny(), ]
-        return [permissions.IsAdminUser(), ]
 
 
 class OptionViewSet(viewsets.ViewSet, generics.UpdateAPIView, generics.DestroyAPIView):
@@ -620,9 +637,7 @@ class OptionViewSet(viewsets.ViewSet, generics.UpdateAPIView, generics.DestroyAP
     serializer_class = OptionSerializer
 
     def get_permissions(self):
-        if self.action in ["list", "retrieve"]:
-            return [permissions.AllowAny(), ]
-        elif self.action == 'add_to_cart':
+        if self.action == 'add_to_cart':
             return [permissions.IsAuthenticated(), ]
         return [BusinessPermission(), IsProductOptionOwner(), ]
 
@@ -656,13 +671,29 @@ class OptionViewSet(viewsets.ViewSet, generics.UpdateAPIView, generics.DestroyAP
                     return Response(cart.data)
             return Response({'message': 'cannot add product to your cart'}, status=status.HTTP_400_BAD_REQUEST)
 
+    def destroy(self, request, *args, **kwargs):
+        option = self.get_object()
+        try:
+            self.check_object_permissions(request, option)
+        except:
+            return Response({"message": "you do not have permission"}, status=status.HTTP_403_FORBIDDEN)
+        order_id_list = option.orderdetail_set.filter(order__status=1).values_list("order__id", flat=True)\
+            .distinct()
+        if order_id_list:
+            for i in order_id_list:
+                cancel_order(i)
+            Order.objects.filter(pk__in=[order_id_list]).delete()
+        return super().destroy(request, *args, **kwargs)
+
+
 class OptionPictureViewSet(viewsets.ViewSet, generics.UpdateAPIView):
     queryset = Picture.objects.all()
     pagination_class = BasePagination
     permission_classes = [IsOptionPictureOwner, ]
     serializer_class = OptionPictureSerializer
 
-class OrderViewSet(viewsets.ModelViewSet):
+
+class OrderViewSet(viewsets.ViewSet, generics.ListCreateAPIView, generics.RetrieveAPIView):
     pagination_class = OrderPagination
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
     filterset_fields = ['status', 'id', 'can_destroy', 'completed_date', 'order_date']
@@ -689,6 +720,7 @@ class OrderViewSet(viewsets.ModelViewSet):
             elif state == '1':
                 orders = orders.filter(store=self.request.user.id)
         return orders
+
 
     def create(self, request, *args, **kwargs):
         address = Address.objects.filter(creator=request.user)
@@ -877,6 +909,7 @@ class OrderDetailViewSet(viewsets.ViewSet, generics.ListAPIView):
             ordd.filter(order__status=status)
         return ordd
 
+
 class BillViewSet(viewsets.ViewSet, generics.ListAPIView):
     queryset = Bill.objects.all()
     serializer_class = BillSerializer
@@ -907,10 +940,12 @@ class BillViewSet(viewsets.ViewSet, generics.ListAPIView):
             else:
                 order = order.filter(order_date__year=timezone.now().year)
             if order:
-                order_weekday = order.values('order_date__week_day').annotate(total_value=Sum('bill__value'), total_count=Count('id'))
-                order_week = order.values('order_date__week').annotate(total_value=Sum('bill__value'), total_count=Count('id'))
-                order_month = order.values('order_date__month').annotate(total_value=Sum('bill__value'),
-                                                                         total_count=Count('id'))
+                order_weekday = order.values('order_date__week_day')\
+                    .annotate(total_value=Sum('bill__value'), total_count=Count('id')).order_by('order_date__week_day')
+                order_week = order.values('order_date__week')\
+                    .annotate(total_value=Sum('bill__value'), total_count=Count('id')).order_by('order_date__week')
+                order_month = order.values('order_date__month')\
+                    .annotate(total_value=Sum('bill__value'), total_count=Count('id')).order_by('order_date__month')
                 total_order_value = order.aggregate(total_value=Sum('bill__value')).get('total_value')
                 return Response({
                     "weekday": list(order_weekday),
@@ -949,12 +984,12 @@ class BillViewSet(viewsets.ViewSet, generics.ListAPIView):
             else:
                 order = order.filter(order_date__month=timezone.now().month)
             if order:
-                order_weekday = order.values('order_date__week_day').annotate(total_value=Sum('bill__value'),
-                                                                              total_count=Count('id'))
-                order_week = order.values('order_date__week').annotate(total_value=Sum('bill__value'),
-                                                                       total_count=Count('id'))
-                order_day = order.values('order_date__day').annotate(total_value=Sum('bill__value'),
-                                                                       total_count=Count('id'))
+                order_weekday = order.values('order_date__week_day')\
+                    .annotate(total_value=Sum('bill__value'), total_count=Count('id')).order_by('order_date__week_day')
+                order_week = order.values('order_date__week')\
+                    .annotate(total_value=Sum('bill__value'), total_count=Count('id')).order_by('order_date__week')
+                order_day = order.values('order_date__day')\
+                    .annotate(total_value=Sum('bill__value'), total_count=Count('id')).order_by('order_date__day')
                 total_order_value = order.aggregate(total_value=Sum('bill__value')).get('total_value')
                 return Response({
                     "weekday": list(order_weekday),
