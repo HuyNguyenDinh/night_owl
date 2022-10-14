@@ -349,12 +349,15 @@ class ProductViewSet(viewsets.ModelViewSet):
         return [BusinessOwnerPermission(), ]
 
     def get_queryset(self):
+        has_options = self.request.query_params.get('has_option')
         products = Product.objects.all()
         if self.action in ["update", "destroy", "add_option"]:
             products = products.filter(owner=self.request.user.id)
         elif self.action in ["list", "retrieve"]:
-            products = products.filter(option__isnull=False).distinct()
-
+            if has_options and has_options == "0":
+                pass
+            else:
+                products = products.filter(option__isnull=False).distinct()
         cate_id = self.request.query_params.get('category_id')
         if cate_id is not None:
             products = products.filter(categories=cate_id)
@@ -406,7 +409,7 @@ class ProductViewSet(viewsets.ModelViewSet):
             serializer = CreateOptionSerializer(data=request.data)
             if serializer.is_valid(raise_exception=True):
                 serializer.save(base_product=pd)
-                return Response(serializer.data, status = status.HTTP_201_CREATED)
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
             return Response({'message': "cannot add options to product"}, status=status.HTTP_400_BAD_REQUEST)
         
 
