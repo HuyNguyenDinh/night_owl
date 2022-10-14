@@ -22,6 +22,7 @@ from fcm_django.models import FCMDevice
 import firebase_admin.messaging
 # Create your views here.
 
+
 class UserViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.UpdateAPIView):
     queryset = User.objects.filter(is_active=True)
     parser_classes = [MultiPartParser, JSONParser]
@@ -303,6 +304,7 @@ class AddressViewSet(viewsets.ModelViewSet):
                 headers = self.get_success_headers(serializer.data)
                 return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
         return Response({'message': 'cannot add address to your account'}, status=status.HTTP_400_BAD_REQUEST)
+
 
 class CartDetailViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -594,6 +596,7 @@ class ProductViewSet(viewsets.ModelViewSet):
                     "total_quantity_count": total_quantity_count
                 }, status=status.HTTP_200_OK)
             return Response({"message": "order details not found"}, status=status.HTTP_404_NOT_FOUND)
+
     @action(methods=['get'], detail=True, url_path='vouchers-available')
     def get_vouchers_available_of_product(self, request, pk):
         try:
@@ -605,24 +608,35 @@ class ProductViewSet(viewsets.ModelViewSet):
             if vouchers:
                 return Response(VoucherSerializer(vouchers, many=True).data)
             return Response({"message": "voucher not found"}, status=status.HTTP_404_NOT_FOUND)
-class CategoryViewSet(viewsets.ModelViewSet):
+
+    def destroy(self, request, *args, **kwargs):
+        product = self.get_object()
+        try:
+            self.check_object_permissions(request, product)
+        except:
+            return Response({"message": "you do not have permission"}, status=status.HTTP_403_FORBIDDEN)
+        order_id_list = product.option_set.filter(orderdetail__order__status=1)\
+            .values_list("orderdetail__order__id", flat=True).distinct()
+        if order_id_list:
+            for i in order_id_list:
+                cancel_order(i)
+            Order.objects.filter(pk__in=order_id_list)
+        return super().destroy(request, *args, **kwargs)
+
+
+class CategoryViewSet(viewsets.ViewSet, generics.ListAPIView):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
     pagination_class = CategoryPagination
+    permission_classes = [permissions.AllowAny, ]
 
-    def get_permissions(self):
-        if self.action in ["list", "retrieve"]:
-            return [permissions.AllowAny(), ]
-        return [permissions.IsAdminUser(), ]
 
 class OptionViewSet(viewsets.ViewSet, generics.UpdateAPIView, generics.DestroyAPIView):
     queryset = Option.objects.all()
     serializer_class = OptionSerializer
 
     def get_permissions(self):
-        if self.action in ["list", "retrieve"]:
-            return [permissions.AllowAny(), ]
-        elif self.action == 'add_to_cart':
+        if self.action == 'add_to_cart':
             return [permissions.IsAuthenticated(), ]
         return [BusinessPermission(), IsProductOptionOwner(), ]
 
@@ -656,7 +670,22 @@ class OptionViewSet(viewsets.ViewSet, generics.UpdateAPIView, generics.DestroyAP
                     return Response(cart.data)
             return Response({'message': 'cannot add product to your cart'}, status=status.HTTP_400_BAD_REQUEST)
 
-class OrderViewSet(viewsets.ModelViewSet):
+    def destroy(self, request, *args, **kwargs):
+        option = self.get_object()
+        try:
+            self.check_object_permissions(request, option)
+        except:
+            return Response({"message": "you do not have permission"}, status=status.HTTP_403_FORBIDDEN)
+        order_id_list = option.orderdetail_set.filter(order__status=1).values_list("order__id", flat=True)\
+            .distinct()
+        if order_id_list:
+            for i in order_id_list:
+                cancel_order(i)
+            Order.objects.filter(pk__in=[order_id_list]).delete()
+        return super().destroy(request, *args, **kwargs)
+
+
+class OrderViewSet(viewsets.ViewSet, generics.ListCreateAPIView, generics.RetrieveAPIView):
     pagination_class = OrderPagination
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
     filterset_fields = ['status', 'id', 'can_destroy', 'completed_date', 'order_date']
@@ -683,7 +712,6 @@ class OrderViewSet(viewsets.ModelViewSet):
             elif state == '1':
                 orders = orders.filter(store=self.request.user.id)
         return orders
-
 
     def create(self, request, *args, **kwargs):
         address = Address.objects.filter(creator=request.user)
@@ -871,6 +899,7 @@ class OrderDetailViewSet(viewsets.ViewSet, generics.ListAPIView):
             ordd.filter(order__status=status)
         return ordd
 
+
 class BillViewSet(viewsets.ViewSet, generics.ListAPIView):
     queryset = Bill.objects.all()
     serializer_class = BillSerializer
@@ -960,6 +989,7 @@ class BillViewSet(viewsets.ViewSet, generics.ListAPIView):
                     "orders_total_count": order.count()
                 }, status=status.HTTP_200_OK)
             return Response({"message": "orders not found"}, status=status.HTTP_404_NOT_FOUND)
+
 
 class RoomViewSet(viewsets.ViewSet, generics.ListCreateAPIView, generics.RetrieveUpdateAPIView):
     queryset = Room.objects.all().order_by('updated_date')
