@@ -102,9 +102,13 @@ class OptionPictureSerializer(ModelSerializer):
         }
 
     def update(self, instance, validated_data):
-        instance.image = validated_data.pop('option_image')
-        instance.save()
-        return super().update(instance, validated_data)
+        try:
+            instance.image = validated_data.pop('option_image')
+            instance.save()
+        except:
+            pass
+        finally:
+            return super().update(instance, validated_data)
 
 
 # Create multiple options
