@@ -10,10 +10,6 @@ from threading import Thread
 from night_owl_market import settings
 from django.core.mail import send_mail
 
-############ Order #############
-# Checkout Order: Decrease unit in stock of option in order details ->
-# Calculate value order (Get order detail that match the voucher id -> check voucher) to create bill ->
-# 
 
 # Check voucher available at now
 def check_now_in_datetime_range(start_date, end_date):
@@ -22,6 +18,7 @@ def check_now_in_datetime_range(start_date, end_date):
         return now >= start_date and now <= end_date
     else:
         return now >= start_date
+
 
 # Check voucher
 def check_voucher_available(option_id, voucher_id):
@@ -32,6 +29,7 @@ def check_voucher_available(option_id, voucher_id):
             return check_now_in_datetime_range(voucher.start_date, voucher.end_date)
     return False
 
+
 # Get order detail id match the voucher
 def check_discount_in_order(order_details, voucher_id):
     for odd in order_details:
@@ -39,10 +37,12 @@ def check_discount_in_order(order_details, voucher_id):
             return odd.id
     return None
 
+
 def calculate_order_value_with_voucher(voucher, value):
     if voucher.is_percentage:
         return value * (100-voucher.discount) / 100
     return value - voucher.discount
+
 
 def calculate_value(order_id, voucher_id=None):
     order = Order.objects.get(pk=order_id)
@@ -52,13 +52,14 @@ def calculate_value(order_id, voucher_id=None):
         if voucher_id:
             voucher = Voucher.objects.get(pk=voucher_id)
             if voucher:
-                odd_exclude = check_discount_in_order(order.orderdetail_set.all(), voucher.id)
-                if odd_exclude:
-                    order_detail = OrderDetail.objects.get(pk=odd_exclude)
-                    if order_detail:
-                        value = calculate_order_value_with_voucher(voucher, value)
+                odd_exclude = order.orderdetail_set.filter(product_option__base_product__voucher__id=voucher_id,
+                                                           product_option__base_product__voucher__start_date__lte=timezone.now(),
+                                                           product_option__base_product__voucher__end_date__gt=timezone.now())
+                if odd_exclude.exists():
+                    value = calculate_order_value_with_voucher(voucher, value)
         value = value + order.total_shipping_fee
     return value
+
 
 # decrease the unit in stock of option when checkout the order
 @transaction.atomic
@@ -74,6 +75,7 @@ def decrease_option_unit_instock(orderdetail_id):
     option.refresh_from_db()
     return option
 
+
 # Calculate Max Width, Height, Length
 def calculate_max_lwh(order_id):
     order = Order.objects.get(pk=order_id)
@@ -83,6 +85,7 @@ def calculate_max_lwh(order_id):
         max_length=Max('product_option__length'),
         total_weight = Sum(F('product_option__weight')))
     return max_lwh
+
 
 # Get GHN Services
 def get_shipping_service(order_id):
@@ -167,9 +170,9 @@ def create_shipping_order(order_id):
     }
     url = 'https://dev-online-gateway.ghn.vn/shiip/public-api/v2/shipping-order/create'
 
-
     x = requests.post(url=url, json=loaded_r, headers=header)
     return x.text
+
 
 def increase_unit_in_stock_when_cancel_order(order_id):
     order = Order.objects.get(pk=order_id)
@@ -187,6 +190,7 @@ def increase_unit_in_stock_when_cancel_order(order_id):
             continue
     return 1
 
+
 @transaction.atomic
 def decrease_user_balance(user_id, value):
     user = User.objects.select_for_update().get(pk=user_id)
@@ -195,12 +199,14 @@ def decrease_user_balance(user_id, value):
     user.save()
     return user
 
+
 @transaction.atomic
 def increase_user_balance(user_id, value):
     user = User.objects.select_for_update().get(pk=user_id)
     user.balance = user.balance + value
     user.save()
     return user
+
 
 def cancel_order(order_id):
     try:
@@ -216,6 +222,7 @@ def cancel_order(order_id):
     else:
         return True
 
+
 def receive_order(order_id):
     try:
         with transaction.atomic():
@@ -228,6 +235,7 @@ def receive_order(order_id):
         return False
     else:
         return True
+
 
 def checkout_order(order_id, voucher_code=None, payment_type=0, raw_status=1):
     try:
@@ -269,6 +277,7 @@ def checkout_order(order_id, voucher_code=None, payment_type=0, raw_status=1):
         order.refresh_from_db()
         return order
 
+
 @transaction.atomic
 def complete_checkout_orders_with_payment_gateway(order_ids):
     try:
@@ -284,6 +293,7 @@ def complete_checkout_orders_with_payment_gateway(order_ids):
         return False
     else:
         return True
+
 
 # Calculate shipping fee
 def calculate_shipping_fee(order_id):
@@ -314,6 +324,7 @@ def calculate_shipping_fee(order_id):
     x = requests.post(url=url, json=loaded_r, headers=headers)
     return x.text
 
+
 # Create shipping code that match with order
 def update_shipping_code(order_id):
     try:
@@ -325,6 +336,8 @@ def update_shipping_code(order_id):
                 order.shipping_code = data.get('order_code')
                 order.total_shipping_fee = data.get('total_fee')
                 order.completed_date = shipping_order.get('expected_delivery_time')
+            else:
+                raise Exception
             order.can_destroy = False
             order.status = 2
             order.save()
@@ -332,6 +345,7 @@ def update_shipping_code(order_id):
         return False
     else:
         return True
+
 
 @transaction.atomic
 def make_order_from_list_cart(list_cart_id, user_id, data):
@@ -347,9 +361,12 @@ def make_order_from_list_cart(list_cart_id, user_id, data):
                 if serializer.is_valid(raise_exception=True):
                     order = serializer.save(store=store, customer=user)
                     order.save()
+                    order_detail_set = []
                     for c in cart_order:
-                        _ = OrderDetail.objects.create(quantity=c.quantity, product_option=c.product_option,\
-                                                       unit_price=c.product_option.price, order=order, cart_id=c)
+                        order_detail_set.append(OrderDetail(quantity=c.quantity, product_option=c.product_option,
+                                                            unit_price=c.product_option.price, order=order, cart_id=c))
+                    if len(order_detail_set) > 0:
+                        OrderDetail.objects.bulk_create(order_detail_set)
                     shipping_data = json.loads(calculate_shipping_fee(order_id=order.id))
                     if shipping_data.get('code') == 200:
                         shipping_fee = shipping_data.get('data').get('total')
@@ -358,6 +375,7 @@ def make_order_from_list_cart(list_cart_id, user_id, data):
                         order.refresh_from_db()
                     result.append(order)
     return result
+
 
 def send_email(reciever, subject, content):
     to = [reciever]

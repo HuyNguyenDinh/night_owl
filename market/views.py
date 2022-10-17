@@ -438,9 +438,9 @@ class ProductViewSet(viewsets.ModelViewSet):
                 except:
                     return Response({"message": "year parameter was wrong format it must be in [0-9]"})
                 else:
-                    order_details = order_details.filter(order__order_date__year=year)
+                    order_details = order_details.filter(order__order_date__year=year).select_related()
             else:
-                order_details = order_details.filter(order__order_date__year=timezone.now().year)
+                order_details = order_details.filter(order__order_date__year=timezone.now().year).select_related()
             if order_details:
                 product_count_weekday = order_details.values('order__order_date__week_day') \
                     .annotate(total_product_count=Sum('quantity')).order_by('order__order_date__week_day')
@@ -486,9 +486,9 @@ class ProductViewSet(viewsets.ModelViewSet):
                 except:
                     return Response({"message": "year parameter was wrong format it must be [0-9]"})
                 else:
-                    order_details = order_details.filter(order__order_date__year=year)
+                    order_details = order_details.filter(order__order_date__year=year).select_related()
             else:
-                order_details = order_details.filter(order__order_date__year=timezone.now().year)
+                order_details = order_details.filter(order__order_date__year=timezone.now().year).select_related()
             if order_details:
                 product_count_weekday = order_details.values('order__order_date__week_day')\
                     .annotate(total_product_count=Sum('quantity')).order_by('order__order_date__week_day')
@@ -537,9 +537,9 @@ class ProductViewSet(viewsets.ModelViewSet):
                     except:
                         return Response({"message": "year parameter was wrong format it must be [0-9]"})
                     else:
-                        order_details = order_details.filter(order__order_date__year=year)
+                        order_details = order_details.filter(order__order_date__year=year).select_related()
                 else:
-                    order_details = order_details.filter(order__order_date__year=timezone.now().year)
+                    order_details = order_details.filter(order__order_date__year=timezone.now().year).select_related()
                 if order_details:
                     product_count_weekday = order_details.values('order__order_date__week_day') \
                         .annotate(total_product_count=Sum('quantity')).order_by('order__order_date__week_day')
@@ -577,9 +577,9 @@ class ProductViewSet(viewsets.ModelViewSet):
                 except:
                     return Response({"message": "month parameter was wrong format it must be [0-12]"})
                 else:
-                    order_details = order_details.filter(order__order_date__year=year)
+                    order_details = order_details.filter(order__order_date__year=year).select_related()
             else:
-                order_details = order_details.filter(order__order_date__year=timezone.now().year)
+                order_details = order_details.filter(order__order_date__year=timezone.now().year).select_related()
             if order_details:
                 product_count_weekday = order_details.values('order__order_date__week_day') \
                     .annotate(total_product_count=Sum('quantity')).order_by('order__order_date__week_day')
@@ -887,6 +887,7 @@ class OrderViewSet(viewsets.ViewSet, generics.ListCreateAPIView, generics.Retrie
             return Response(VoucherSerializer(vouchers, many=True).data, status=status.HTTP_200_OK)
         return Response({"message": "voucher not found"}, status=status.HTTP_404_NOT_FOUND)
 
+
 class OrderDetailViewSet(viewsets.ViewSet, generics.ListAPIView):
     serializer_class = OrderDetailSerializer
     permission_classes = [VerifiedUserPermission]
@@ -926,9 +927,9 @@ class BillViewSet(viewsets.ViewSet, generics.ListAPIView):
                 except:
                     return Response({"message": "year parameter was wrong format"}, status=status.HTTP_400_BAD_REQUEST)
                 else:
-                    order = order.filter(order_date__year=year)
+                    order = order.filter(order_date__year=year).select_related()
             else:
-                order = order.filter(order_date__year=timezone.now().year)
+                order = order.filter(order_date__year=timezone.now().year).select_related()
             if order:
                 order_weekday = order.values('order_date__week_day')\
                     .annotate(total_value=Sum('bill__value'), total_count=Count('id')).order_by('order_date__week_day')
@@ -970,9 +971,9 @@ class BillViewSet(viewsets.ViewSet, generics.ListAPIView):
                     month = int(month)
                 except:
                     return Response({"message": "month parameter was wrong format"}, status=status.HTTP_400_BAD_REQUEST)
-                order = order.filter(order_date__month=month)
+                order = order.filter(order_date__month=month).select_related()
             else:
-                order = order.filter(order_date__month=timezone.now().month)
+                order = order.filter(order_date__month=timezone.now().month).select_related()
             if order:
                 order_weekday = order.values('order_date__week_day')\
                     .annotate(total_value=Sum('bill__value'), total_count=Count('id')).order_by('order_date__week_day')
@@ -1116,6 +1117,7 @@ class VoucherViewSet(viewsets.ModelViewSet):
             return [BusinessPermission(), ]
         return [BusinessOwnerPermission(), ]
 
+
 class ReportViewSet(viewsets.ModelViewSet):
     queryset = Report.objects.all()
     serializer_class = ReportSerialier
@@ -1158,6 +1160,7 @@ class ReportViewSet(viewsets.ModelViewSet):
             serializer.save(creator=request.user, report=report)
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response({"message": "something wrong"}, status=status.HTTP_400_BAD_REQUEST)
+
 
 class MomoPayedView(APIView):
     def post(self, request, secret_link):

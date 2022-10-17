@@ -4,6 +4,7 @@ import requests
 access_token = "8ae8d191-18b9-11ed-b136-06951b6b7f89"
 base_url = "https://dev-online-gateway.ghn.vn/shiip/public-api/master-data/"
 
+
 def get_province_by_id(province_id):
     header = {
         "Content-Type": "application/json",
@@ -17,6 +18,7 @@ def get_province_by_id(province_id):
     for province in data:
         if province.get('ProvinceID') == province_id:
             return province.get('ProvinceName')
+
 
 def get_district_by_id(district_id, province_id):
     header = {
@@ -33,6 +35,7 @@ def get_district_by_id(district_id, province_id):
     for district in data:
         if district.get('DistrictID') == district_id and district.get('ProvinceID') == province_id:
             return district.get('DistrictName')
+
 
 def get_ward_by_code(ward_code,district_id):
     header = {

@@ -15,15 +15,7 @@ class AddressSerializer(ModelSerializer):
     class Meta:
         model = Address
         exclude = ["creator"]
-    #     extra_kwargs = {
-    #         "full_address": {"read_only": "true"}
-    #     }
-    #
-    # def create(self, validated_data):
-    #     pass
-    #
-    # def update(self, instance, validated_data):
-    #     pass
+
 
 class UserSerializer(ModelSerializer):
     address = AddressSerializer(required=False, read_only=True)
@@ -57,12 +49,15 @@ class UserLessInformationSerializer(ModelSerializer):
         model = User
         fields = ['id', 'first_name', 'last_name', 'phone_number', 'avatar']
 
+
 class UserCashinSerializer(ModelSerializer):
     amount = IntegerField(write_only=True, required=True, min_value=10000)
     pay_url = CharField(read_only=True)
+
     class Meta:
         model = User
         fields = ['amount', 'pay_url']
+
 
 class UserAvatarSerializer(ModelSerializer):
     image = Base64ImageField(allow_empty_file=False, required=True, write_only=True)
@@ -76,15 +71,18 @@ class UserAvatarSerializer(ModelSerializer):
             'phone_number': {'read_only': 'true'},
             'image': {'write_only': 'true'}
         }
+
     def update_avatar(self, instance, validated_data):
         instance.avatar = validated_data.get('image')
         instance.save()
         return instance
 
+
 class CategorySerializer(ModelSerializer):
     class Meta:
         model = Category
         fields = "__all__"
+
 
 class OptionPictureSerializer(ModelSerializer):
     class Meta:
@@ -94,6 +92,7 @@ class OptionPictureSerializer(ModelSerializer):
             'product_option': {'read_only': 'true'},
             'pk': {'read_only': 'true'}
         }
+
 
 # Create multiple options
 class CreateOptionSerializer(ModelSerializer):
@@ -113,12 +112,17 @@ class CreateOptionSerializer(ModelSerializer):
     def create(self, validated_data):
         uploaded_data = validated_data.pop('uploaded_images')
         option = Option.objects.create(**validated_data)
+        new_product_image = []
         for uploaded_item in uploaded_data:
-            new_product_image = Picture.objects.create(product_option=option, image=uploaded_item)
+            new_product_image.append(Picture(product_option=option, image=uploaded_item))
+        if new_product_image:
+            Picture.objects.bulk_create(new_product_image)
         return option
+
 
 class OptionSerializer(ModelSerializer):
     picture_set = OptionPictureSerializer(many=True, required=False)
+
     class Meta:
         model = Option
         fields = "__all__"
@@ -126,10 +130,12 @@ class OptionSerializer(ModelSerializer):
             'base_product': {'read_only': 'true'}
         }
 
+
 # List product serializer
 class ListProductSerializer(ModelSerializer):
     min_price = ReadOnlyField()
     categories = CategorySerializer(many=True)
+
     class Meta:
         model = Product
         fields = "__all__"
@@ -138,10 +144,12 @@ class ListProductSerializer(ModelSerializer):
             'sold_amount': {'read_only': 'true'},
         }
 
+
 # Create product serializer
 class ProductSerializer(ModelSerializer):
     min_price = ReadOnlyField()
     image = Base64ImageField(required=True, write_only=True)
+
     class Meta:
         model = Product
         fields = ["id", "name", "is_available", "sold_amount", "picture", "description", "owner", "image", "min_price", "categories"]
@@ -159,6 +167,7 @@ class ProductSerializer(ModelSerializer):
         pd.categories.set(category_set)
         return pd
 
+
 # show rating
 class RatingSerializer(ModelSerializer):
     creator = UserLessInformationSerializer(read_only=True)
@@ -170,6 +179,7 @@ class RatingSerializer(ModelSerializer):
         extra_kwargs = {
             'id': {'read_only': 'true'},
         }
+
 
 # Create rating
 class CreateRatingSerializer(ModelSerializer):
@@ -183,6 +193,7 @@ class CreateRatingSerializer(ModelSerializer):
             'product': {'read_only': 'true'},
         }
 
+
 # Get product detail
 class ProductRetrieveSerializer(ModelSerializer):
     option_set = OptionSerializer(many=True)
@@ -194,11 +205,13 @@ class ProductRetrieveSerializer(ModelSerializer):
         model = Product
         fields = "__all__"
 
+
 # Get product id, name and picture
 class ProductLessInformationSerializer(ModelSerializer):
     class Meta:
         model = Product
         fields = ['id', 'name', 'picture']
+
 
 class OptionInOrderDetailSerializer(ModelSerializer):
     base_product = ProductLessInformationSerializer()
@@ -209,16 +222,20 @@ class OptionInOrderDetailSerializer(ModelSerializer):
             'base_product': {'read_only': 'true'}
         }
 
+
 class OrderDetailSerializer(ModelSerializer):
     product_option = OptionInOrderDetailSerializer(read_only=True)
+
     class Meta:
         model = OrderDetail
         fields = "__all__"
+
 
 class ListOrderSerializer(ModelSerializer):
     store = UserLessInformationSerializer(read_only=True)
     customer = UserLessInformationSerializer(read_only=True)
     cost = SerializerMethodField(method_name='calculate_temp_price', read_only=True)
+
     class Meta:
         model = Order
         fields = "__all__"
@@ -235,6 +252,7 @@ class ListOrderSerializer(ModelSerializer):
             order_details = OrderDetail.objects.filter(order=obj)
             return order_details.aggregate(total_price=Sum(F('quantity') * F('unit_price')))['total_price']
 
+
 class OrderSerializer(ModelSerializer):
     list_cart = ListField(
         child = IntegerField(),
@@ -244,6 +262,7 @@ class OrderSerializer(ModelSerializer):
     cost = SerializerMethodField(method_name='calculate_temp_price', read_only=True)
     store = UserLessInformationSerializer(read_only=True)
     customer = UserLessInformationSerializer(read_only=True)
+
     class Meta:
         model = Order
         fields = "__all__"
@@ -267,6 +286,7 @@ class OrderSerializer(ModelSerializer):
             order_details = OrderDetail.objects.filter(order=obj)
             return order_details.aggregate(total_price=Sum(F('quantity') * F('unit_price')))['total_price']
 
+
 class VoucherSerializer(ModelSerializer):
 
     class Meta:
@@ -284,6 +304,7 @@ class CheckoutOrderSerializer(ModelSerializer):
         required=False
     )
     payment_type = IntegerField(max_value=2, min_value=0, required=False)
+
     class Meta:
         model = Order
         exclude = ['customer']
@@ -307,13 +328,16 @@ class BillSerializer(ModelSerializer):
         model = Bill
         fields = "__all__"
 
+
 # Show product option in cart detail
 class OptionInCartSerializer(ModelSerializer):
     base_product = ProductSerializer(read_only=True)
+
     class Meta:
         model = Option
         fields = "__all__"
         depth = 2
+
 
 # Get User's cart detail
 class CartSerializer(ModelSerializer):
@@ -325,6 +349,7 @@ class CartSerializer(ModelSerializer):
         extra_kwargs = {
             'customer': {'read_only': True},
         }
+
 
 class CartInStoreSerializer(ModelSerializer):
     carts = SerializerMethodField('get_carts_user', read_only=True)
@@ -357,14 +382,17 @@ class AddCartSerializer(ModelSerializer):
             'product_option': {'read_only': 'true'},
         }
 
+
 class ChatRoomMessageSerialier(ModelSerializer):
     creator = UserLessInformationSerializer(read_only=True)
+
     class Meta:
         model = Message
         fields = "__all__"
         extra_kwargs = {
             "room": {"read_only": "true"}
         }
+
 
 class RoomSerializer(ModelSerializer):
     list_user_ids = ListField(
@@ -373,6 +401,7 @@ class RoomSerializer(ModelSerializer):
     )
     user = UserLessInformationSerializer(many=True, read_only=True)
     last_message = SerializerMethodField(method_name='get_last_message', read_only=True)
+
     class Meta:
         model = Room
         fields = "__all__"
@@ -402,28 +431,35 @@ class GoogleTokenSerializer(Serializer):
     first_name = CharField(read_only=True)
     last_name = CharField(read_only=True)
 
+
 class VerifiedCodeSerializer(Serializer):
     code = CharField(write_only=True, required=True)
+
 
 class EmailSerializer(Serializer):
     email = EmailField(write_only=True, required=True)
     user_id = IntegerField(read_only=True)
 
+
 class MessageSerializer(Serializer):
     message = CharField(read_only=True)
+
 
 class GetTokenWithUserIdAndCodeSerializer(Serializer):
     user_id = IntegerField(write_only=True, required=True)
     code = CharField(write_only=True, required=True)
 
+
 class ResetPasswordSerialier(Serializer):
     new_password = CharField(write_only=True, required=True)
     confirm_password = CharField(write_only=True, required=True)
+
 
 class ChangePasswordSerializer(Serializer):
     current_password = CharField(write_only=True, required=True)
     new_password = CharField(write_only=True, required=True)
     confirm_password = CharField(write_only=True, required=True)
+
 
 class ProductOfUserSerializer(ModelSerializer):
     product_set = ListProductSerializer(many=True)
@@ -431,6 +467,7 @@ class ProductOfUserSerializer(ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'first_name', 'last_name', 'phone_number', 'avatar', 'product_set']
+
 
 class ReplySerializer(ModelSerializer):
     creator = UserLessInformationSerializer(read_only=True)
@@ -442,6 +479,7 @@ class ReplySerializer(ModelSerializer):
             "created_date": {'read_only': 'true'},
             "report": {'read_only': 'true'}
         }
+
 
 class ReportSerialier(ModelSerializer):
     reporter = UserLessInformationSerializer(read_only=True)
@@ -455,8 +493,10 @@ class ReportSerialier(ModelSerializer):
             "created_date": {'read_only': 'true'}
         }
 
+
 class ListReportSerializer(ModelSerializer):
     reporter = UserLessInformationSerializer(read_only=True)
+
     class Meta:
         model = Report
         fields = "__all__"

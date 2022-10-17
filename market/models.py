@@ -6,6 +6,7 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.contrib.auth.base_user import BaseUserManager 
 # Create your models here.
 
+
 class CustomUserManager(BaseUserManager):
     """
     Custom user model manager where email is the unique identifiers
@@ -37,6 +38,7 @@ class CustomUserManager(BaseUserManager):
             raise ValueError(_('Superuser must have is_superuser=True.'))
         return self.create_user(email, password, **extra_fields)
 
+
 class User(AbstractUser):
     username = None
     email = models.EmailField(null=False, blank=False, unique=True)
@@ -55,6 +57,7 @@ class User(AbstractUser):
     def __str__(self) -> str:
         return self.first_name + ' ' + self.last_name + " - " + str(self.id)
 
+
 class Address(models.Model):
     # Using GHN API Address for province_id, district_id, ward_id
     country = models.CharField(max_length=100, default="Viet Nam")
@@ -68,6 +71,7 @@ class Address(models.Model):
     
     def __str__(self) -> str:
         return self.full_address
+
 
 class Report(models.Model):
     created_date = models.DateTimeField(auto_now_add=True)
@@ -87,17 +91,20 @@ class Report(models.Model):
     def __str__(self) -> str:
         return self.subject
 
+
 class Reply(models.Model):
     content = models.TextField()
     created_date = models.DateTimeField(auto_now_add=True)
     report = models.ForeignKey(Report, on_delete=models.CASCADE)
     creator = models.ForeignKey(User, on_delete=models.CASCADE)
 
+
 class Category(models.Model):
     name = models.CharField(max_length= 255,unique=True, blank=False, null=False)
 
     def __str__(self) -> str:
         return self.name
+
 
 class Product(models.Model):
     name = models.CharField(max_length= 255, blank=False, null=False)
@@ -114,6 +121,7 @@ class Product(models.Model):
     @property
     def min_price(self):
         return Option.objects.filter(base_product=self).aggregate(models.Min('price')).get('price__min')
+
 
 class Order(models.Model):
     order_date = models.DateTimeField(auto_now_add=True)
@@ -157,16 +165,19 @@ class Option(models.Model):
     def __str__(self) -> str:
         return self.base_product.name + " " + self.unit
 
+
 class Picture(models.Model):
     image = models.ImageField(upload_to='night_owl/product')
     product_option = models.ForeignKey(Option, on_delete=models.CASCADE)
+
 
 class OrderDetail(models.Model):
     quantity = models.PositiveIntegerField(validators=[MinValueValidator(1)])
     unit_price = models.DecimalField(max_digits=20, decimal_places=2, validators=[MinValueValidator(1)], default=1)
     order = models.ForeignKey(Order, on_delete=models.SET_NULL, null=True)
     product_option = models.ForeignKey(Option, on_delete=models.SET_NULL, null=True)
-    cart_id = models.ForeignKey('CartDetail', on_delete=models.SET_NULL, null=True)
+    cart_id = models.ForeignKey('CartDetail', on_delete=models.SET_NULL, null=True, blank=True)
+
 
 class Bill(models.Model):
     value = models.DecimalField(max_digits=20, decimal_places=2,validators=[MinValueValidator(0)], null=False, blank=False)
@@ -178,6 +189,7 @@ class Bill(models.Model):
     def __str__(self):
         return "Order Id: " +  str(self.order_payed.id)
 
+
 class CartDetail(models.Model):
     quantity = models.PositiveIntegerField(validators=[MinValueValidator(1)])
     customer = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -185,6 +197,7 @@ class CartDetail(models.Model):
 
     class Meta:
         unique_together = [['customer', 'product_option']]
+
 
 class Rating(models.Model):
     rate = models.PositiveIntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
@@ -194,6 +207,7 @@ class Rating(models.Model):
 
     def __str__(self):
         return self.creator.first_name + " rated " + self.product.name + "\t" + str(self.rate)
+
 
 class Voucher(models.Model):
     discount = models.DecimalField(max_digits=20, decimal_places=2, validators=[MinValueValidator(0)], null=False, blank=False)
@@ -207,6 +221,7 @@ class Voucher(models.Model):
     def __str__(self):
         return self.code
 
+
 class Room(models.Model):
     created_date = models.DateTimeField(auto_now_add=True)
     updated_date = models.DateTimeField(auto_now=True)
@@ -218,6 +233,7 @@ class Room(models.Model):
     )
 
     type = models.IntegerField(choices=ROOMCHAT_CHOICES, default=0)
+
 
 class Message(models.Model):
     content = models.TextField(null=False, blank=False)
