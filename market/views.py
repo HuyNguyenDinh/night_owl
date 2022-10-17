@@ -631,6 +631,7 @@ class CategoryViewSet(viewsets.ViewSet, generics.ListAPIView):
     permission_classes = [permissions.AllowAny, ]
 
 
+
 class OptionViewSet(viewsets.ViewSet, generics.UpdateAPIView, generics.DestroyAPIView):
     queryset = Option.objects.all()
     serializer_class = OptionSerializer
@@ -685,6 +686,13 @@ class OptionViewSet(viewsets.ViewSet, generics.UpdateAPIView, generics.DestroyAP
         return super().destroy(request, *args, **kwargs)
 
 
+class OptionPictureViewSet(viewsets.ViewSet, generics.UpdateAPIView):
+    queryset = Picture.objects.all()
+    pagination_class = BasePagination
+    permission_classes = [IsOptionPictureOwner, ]
+    serializer_class = OptionPictureSerializer
+
+
 class OrderViewSet(viewsets.ViewSet, generics.ListCreateAPIView, generics.RetrieveAPIView):
     pagination_class = OrderPagination
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
@@ -712,6 +720,7 @@ class OrderViewSet(viewsets.ViewSet, generics.ListCreateAPIView, generics.Retrie
             elif state == '1':
                 orders = orders.filter(store=self.request.user.id)
         return orders
+
 
     def create(self, request, *args, **kwargs):
         address = Address.objects.filter(creator=request.user)
@@ -1066,6 +1075,7 @@ class RoomViewSet(viewsets.ViewSet, generics.ListCreateAPIView, generics.Retriev
             room.user.remove(user)
             return Response({"message": "room deleted for you"}, status=status.HTTP_204_NO_CONTENT)
         return Response({"message": "you do not have permission"}, status=status.HTTP_403_FORBIDDEN)
+
 
 class MessageViewSet(viewsets.ViewSet, generics.ListAPIView):
     queryset = Message.objects.all().order_by('created_date')

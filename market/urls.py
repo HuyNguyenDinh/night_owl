@@ -19,6 +19,7 @@ router.register('devices', FCMDeviceAuthorizedViewSet, basename="fcm-devices")
 router.register("chatrooms", views.RoomViewSet, basename="chat-rooms")
 router.register("messages", views.MessageViewSet, basename="messages")
 router.register("reports", views.ReportViewSet, basename="reports")
+router.register("option-image", views.OptionPictureViewSet, basename="option-image")
 
 urlpatterns = [
     path('', include(router.urls)),

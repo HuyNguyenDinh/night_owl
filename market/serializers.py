@@ -54,6 +54,7 @@ class UserCashinSerializer(ModelSerializer):
     amount = IntegerField(write_only=True, required=True, min_value=10000)
     pay_url = CharField(read_only=True)
 
+
     class Meta:
         model = User
         fields = ['amount', 'pay_url']
@@ -85,6 +86,7 @@ class CategorySerializer(ModelSerializer):
 
 
 class OptionPictureSerializer(ModelSerializer):
+    option_image = Base64ImageField(write_only=True)
     class Meta:
         model = Picture
         fields = "__all__"
@@ -92,6 +94,15 @@ class OptionPictureSerializer(ModelSerializer):
             'product_option': {'read_only': 'true'},
             'pk': {'read_only': 'true'}
         }
+
+    def update(self, instance, validated_data):
+        try:
+            instance.image = validated_data.pop('option_image')
+            instance.save()
+        except:
+            pass
+        finally:
+            return super().update(instance, validated_data)
 
 
 # Create multiple options
@@ -167,6 +178,15 @@ class ProductSerializer(ModelSerializer):
         pd.categories.set(category_set)
         return pd
 
+    def update(self, instance, validated_data):
+        try:
+            instance.picture = validated_data.pop('image')
+            instance.save()
+        except:
+            pass
+        finally:
+            return super().update(instance, validated_data)
+
 
 # show rating
 class RatingSerializer(ModelSerializer):
@@ -215,6 +235,7 @@ class ProductLessInformationSerializer(ModelSerializer):
 
 class OptionInOrderDetailSerializer(ModelSerializer):
     base_product = ProductLessInformationSerializer()
+
     class Meta:
         model = Option
         fields = ['id', 'unit', 'base_product', 'price']
@@ -255,7 +276,7 @@ class ListOrderSerializer(ModelSerializer):
 
 class OrderSerializer(ModelSerializer):
     list_cart = ListField(
-        child = IntegerField(),
+        child=IntegerField(),
         write_only=True
     )
     orderdetail_set = OrderDetailSerializer(many=True, read_only=True)
@@ -329,6 +350,7 @@ class BillSerializer(ModelSerializer):
         fields = "__all__"
 
 
+
 # Show product option in cart detail
 class OptionInCartSerializer(ModelSerializer):
     base_product = ProductSerializer(read_only=True)
@@ -337,6 +359,7 @@ class OptionInCartSerializer(ModelSerializer):
         model = Option
         fields = "__all__"
         depth = 2
+
 
 
 # Get User's cart detail
@@ -460,14 +483,12 @@ class ChangePasswordSerializer(Serializer):
     new_password = CharField(write_only=True, required=True)
     confirm_password = CharField(write_only=True, required=True)
 
-
 class ProductOfUserSerializer(ModelSerializer):
     product_set = ListProductSerializer(many=True)
 
     class Meta:
         model = User
         fields = ['id', 'first_name', 'last_name', 'phone_number', 'avatar', 'product_set']
-
 
 class ReplySerializer(ModelSerializer):
     creator = UserLessInformationSerializer(read_only=True)
@@ -480,7 +501,6 @@ class ReplySerializer(ModelSerializer):
             "report": {'read_only': 'true'}
         }
 
-
 class ReportSerialier(ModelSerializer):
     reporter = UserLessInformationSerializer(read_only=True)
     reply_set = ReplySerializer(many=True, read_only=True)
@@ -492,7 +512,6 @@ class ReportSerialier(ModelSerializer):
             "status": {'read_only': 'true'},
             "created_date": {'read_only': 'true'}
         }
-
 
 class ListReportSerializer(ModelSerializer):
     reporter = UserLessInformationSerializer(read_only=True)
