@@ -1078,7 +1078,7 @@ class RoomViewSet(viewsets.ViewSet, generics.ListCreateAPIView, generics.Retriev
 
 
 class MessageViewSet(viewsets.ViewSet, generics.ListAPIView):
-    queryset = Message.objects.all().order_by('created_date')
+    queryset = Message.objects.all().order_by('-created_date')
     serializer_class = ChatRoomMessageSerialier
     permission_classes = [permissions.IsAuthenticated]
     pagination_class = BasePagination
@@ -1086,7 +1086,7 @@ class MessageViewSet(viewsets.ViewSet, generics.ListAPIView):
     filterset_fields = ['room__id']
 
     def get_queryset(self):
-        return Message.objects.filter(room__user__in=[self.request.user])
+        return Message.objects.filter(room__user__in=[self.request.user]).order_by('-created_date')
 
     def list(self, request, *args, **kwargs):
         room_id = request.query_params.get('room__id')
@@ -1106,8 +1106,7 @@ class VoucherViewSet(viewsets.ModelViewSet):
         if request.user and request.user.is_staff:
             can_add = True
         else:
-            products = Product.objects.filter(owner=request.user.id,
-                                   id__in=[o for o in request.data.get('products')])
+            products = Product.objects.filter(owner=request.user.id, id__in=[o for o in request.data.get('products')])
             # Check product owner in list product
             if list(products.values_list('id', flat=True)) == request.data.get('products'):
                 can_add = True
@@ -1120,6 +1119,7 @@ class VoucherViewSet(viewsets.ModelViewSet):
             return Response({'message': 'can not create voucher'}, status=status.HTTP_400_BAD_REQUEST)
         return Response({'message': 'can not add voucher to product that you are not the owner'},
                         status=status.HTTP_403_FORBIDDEN)
+
     def get_permissions(self):
         if self.action in ['list', 'retrieve']:
             return [permissions.AllowAny(), ]
