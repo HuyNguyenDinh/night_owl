@@ -136,7 +136,7 @@ def create_shipping_order(order_id):
         }
         items.append(item)
     data = {
-            "payment_type_id": 2,
+            "payment_type_id": 1,
             "note": "Night Owl Market",
             "required_note": "KHONGCHOXEMHANG",
             "return_phone": seller.phone_number,
