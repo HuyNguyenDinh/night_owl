@@ -13,7 +13,6 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
 from market.utils import *
 from .mongo_connect import *
-from multiprocessing import Process
 from market.speedSMS import *
 from market.googleInfo import *
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -816,9 +815,9 @@ class OrderViewSet(viewsets.ViewSet, generics.ListCreateAPIView, generics.Retrie
                 "content": content
             })
             FCMDevice.objects.filter(user=order.customer).send_message(message)
-            x = Process(target=send_email, args=(order.customer.email, subject, content))
+            x = Thread(target=send_email, args=(order.customer.email, subject, content))
             x.start()
-            # y = Process(target=send_sms, args=(order.customer.phone_number, content))
+            # y = Thread(target=send_sms, args=(order.customer.phone_number, content))
             # y.start()
             return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
         return Response({'message': 'failed to create shipping order'}, status=status.HTTP_400_BAD_REQUEST)
@@ -846,9 +845,9 @@ class OrderViewSet(viewsets.ViewSet, generics.ListCreateAPIView, generics.Retrie
                     "content": content
                 })
                 FCMDevice.objects.filter(user=order.customer).send_message(message)
-                x = Process(target=send_email, args=(order.customer.email, subject, content))
+                x = Thread(target=send_email, args=(order.customer.email, subject, content))
                 x.start()
-                # y = Process(target=send_sms, args=(order.customer.phone_number, content))
+                # y = Thread(target=send_sms, args=(order.customer.phone_number, content))
                 # y.start()
                 return Response({"message": "order canceled", "order_id": order.id}, status=status.HTTP_200_OK)
             return Response({"message": "can not cancel order"}, status=status.HTTP_400_BAD_REQUEST)
@@ -876,9 +875,9 @@ class OrderViewSet(viewsets.ViewSet, generics.ListCreateAPIView, generics.Retrie
                     "content": content
                 })
                 FCMDevice.objects.filter(user=order.store).send_message(message)
-                x = Process(target=send_email, args=(order.store.email, subject, content))
+                x = Thread(target=send_email, args=(order.store.email, subject, content))
                 x.start()
-                # y = Process(target=send_sms, args=(order.store.phone_number, content))
+                # y = Thread(target=send_sms, args=(order.store.phone_number, content))
                 # y.start()
                 return Response({'message': 'order completed'}, status=status.HTTP_200_OK)
             return Response({'message': 'something problem so we can not change the order status'}, status=status.HTTP_400_BAD_REQUEST)
