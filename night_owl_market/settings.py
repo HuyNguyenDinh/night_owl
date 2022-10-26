@@ -23,7 +23,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-vt&#4&s!80tvp(!3^37u5@m_%=$e)8+k$dgblizxt4(90ji9)&'
+SECRET_KEY = os.getenv('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -93,10 +93,10 @@ WSGI_APPLICATION = 'night_owl_market.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': 'd8g2oqvrvkvsmp',
-        'USER': 'xguytfhmbzjwsb',
-        'PASSWORD': '640aa993e7bdfa92d6e5d6a5994ff42b1de4cde562b6b30a313801ec7458b4c7',
-        'HOST': 'ec2-34-193-44-192.compute-1.amazonaws.com',
+        'NAME': os.getenv('DB_NAME'),
+        'USER': os.getenv('DB_USER'),
+        'PASSWORD': os.getenv('DB_PASSWORD'),
+        'HOST': os.getenv('DB_HOST'),
         'PORT': '5432',
     }
 }
@@ -155,9 +155,9 @@ MEDIA_URL = 'media/'
 
 # Cloudinary Config
 CLOUDINARY_STORAGE = {
-  'CLOUD_NAME': "open-university-dinhhuy", 
-  'API_KEY': "418839168168771", 
-  'API_SECRET': "xtmalq_fmZt2HHiBVumFdmdZzmI" 
+  'CLOUD_NAME': os.getenv('CLOUD_NAME'), 
+  'API_KEY': os.getenv('CLOUD_API_KEY'), 
+  'API_SECRET': os.getenv('CLOUD_API_SECRET')
 }
 
 DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
@@ -166,8 +166,8 @@ DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_USE_TLS = True
 EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_HOST_USER = 'nightowl.emarket@gmail.com'
-EMAIL_HOST_PASSWORD = 'awktcquyrjyqgfcv'
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 EMAIL_PORT = 587
 
 # Default primary key field type
