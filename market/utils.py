@@ -1,7 +1,7 @@
 from django.utils import timezone
 from psycopg2 import DatabaseError
 from market.models import *
-from django.db.models import Sum, F, Max, Count
+from django.db.models import Sum, F, Max, Count, Q
 from django.db import transaction
 import requests
 import json
@@ -52,9 +52,10 @@ def calculate_value(order_id, voucher_id=None):
         if voucher_id:
             voucher = Voucher.objects.get(pk=voucher_id)
             if voucher:
-                odd_exclude = order.orderdetail_set.filter(product_option__base_product__voucher__id=voucher_id,
-                                                           product_option__base_product__voucher__start_date__lte=timezone.now(),
-                                                           product_option__base_product__voucher__end_date__gt=timezone.now())
+                odd_exclude = order.orderdetail_set.filter(Q(product_option__base_product__voucher__id=voucher_id) &
+                                                           Q(product_option__base_product__voucher__start_date__lte=timezone.now()) &
+                                                           (Q(product_option__base_product__voucher__end_date__gt=timezone.now()) |
+                                                            Q(product_option__base_product__voucher__end_date__isnull=True)))
                 if odd_exclude.exists():
                     value = calculate_order_value_with_voucher(voucher, value)
         value = value + order.total_shipping_fee
