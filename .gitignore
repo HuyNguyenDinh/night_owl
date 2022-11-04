@@ -3,8 +3,6 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# migrations
-market/migrations/
 market/__pycache__
 night_owl_market/__pycache__
 # C extensions

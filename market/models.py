@@ -107,11 +107,11 @@ class Category(models.Model):
 
 
 class Product(models.Model):
-    name = models.CharField(max_length= 255, blank=False, null=False)
+    name = models.CharField(max_length=255, blank=False, null=False)
     is_available = models.BooleanField(default=True)
     categories = models.ManyToManyField(Category)
     sold_amount = models.BigIntegerField(default=0, validators=[MinValueValidator(0)])
-    picture = models.ImageField(upload_to='night_owl/product', null=True)
+    picture = models.ImageField(upload_to='night_owl/product', null=True, blank=True)
     description = models.TextField(blank=True, null=True)
     owner = models.ForeignKey(User, on_delete=models.CASCADE)
 
