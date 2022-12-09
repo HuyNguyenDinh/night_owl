@@ -1,6 +1,6 @@
 # night_owl
 Backend for night owl market
-I deploy api to heroku. Check at: https://night-owl-market.herokuapp.com/market
+I deploy api to heroku. Check at: https://www.nguyendinhhuy.dev/market
 
 ## How to run this project
 ### 1. Install Python from https://www.python.org/downloads/
